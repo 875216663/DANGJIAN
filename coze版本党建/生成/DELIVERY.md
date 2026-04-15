@@ -23,7 +23,7 @@ Vercel 项目建议：
 - Repository：`875216663/DANGJIAN`
 - Root Directory：`coze版本党建/生成/client`
 - `vercel.json` 已内置：
-  - `installCommand`: `corepack enable && pnpm install --dir .. --frozen-lockfile`
+  - `installCommand`: `corepack enable && pnpm install --dir .. --no-frozen-lockfile`
   - `buildCommand`: `pnpm run build:web`
   - `outputDirectory`: `dist`
 - 说明：
