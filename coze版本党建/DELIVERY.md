@@ -30,6 +30,7 @@ Vercel 项目建议：
   - `client` 是 `source/projects` workspace 子包
   - 前端部署必须由上层 workspace 安装依赖，不能只在 `client` 目录单独执行 `npm install`
   - 若只装子包依赖，Expo/Metro 会在构建时找不到 `source/projects/node_modules`
+  - 已移除 `client` 中会在云端动态安装依赖的 `postinstall` 脚本，避免 Vercel 构建阶段卡死或改乱依赖树
 
 前端环境变量：
 
