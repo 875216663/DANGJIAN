@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'source/projects/release/**'
+      - '演示/release/**'
       - '.github/workflows/deploy-preview-pages.yml'
   workflow_dispatch:
 
@@ -35,7 +35,7 @@ jobs:
       - name: Upload static site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: source/projects/release
+          path: 演示/release
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -1,5 +1,11 @@
 # Expo App + Express.js
 
+当前目录 `生成/` 是正式版工作区根目录。
+
+- 前端目录：`生成/client`
+- 后端目录：`生成/server`
+- 如果你要继续开发真实数据版，请从这里开始，不再使用旧的 `source/projects` 路径
+
 ## 目录结构规范（严格遵循）
 
 当前仓库是一个 monorepo（基于 pnpm 的 workspace）

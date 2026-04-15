@@ -2,8 +2,8 @@
 
 ## 正式架构
 
-- 前端：`source/projects/client`
-- 后端：`source/projects/server`
+- 前端：`生成/client`
+- 后端：`生成/server`
 - 数据库：Neon Postgres
 - 前端部署：Vercel
 - 后端部署：Railway
@@ -21,15 +21,15 @@
 Vercel 项目建议：
 
 - Repository：`875216663/DANGJIAN`
-- Root Directory：`coze版本党建/source/projects/client`
+- Root Directory：`coze版本党建/生成/client`
 - `vercel.json` 已内置：
   - `installCommand`: `corepack enable && pnpm install --dir .. --frozen-lockfile`
   - `buildCommand`: `pnpm run build:web`
   - `outputDirectory`: `dist`
 - 说明：
-  - `client` 是 `source/projects` workspace 子包
+  - `client` 是 `生成` workspace 子包
   - 前端部署必须由上层 workspace 安装依赖，不能只在 `client` 目录单独执行 `npm install`
-  - 若只装子包依赖，Expo/Metro 会在构建时找不到 `source/projects/node_modules`
+  - 若只装子包依赖，Expo/Metro 会在构建时找不到 `生成/node_modules`
   - 已移除 `client` 中会在云端动态安装依赖的 `postinstall` 脚本，避免 Vercel 构建阶段卡死或改乱依赖树
 
 前端环境变量：
@@ -41,7 +41,7 @@ Vercel 项目建议：
 Railway 项目建议：
 
 - Repository：`875216663/DANGJIAN`
-- Root Directory：`coze版本党建/source/projects/server`
+- Root Directory：`coze版本党建/生成/server`
 - 已提供 `Dockerfile` 和 `railway.json`
 
 后端环境变量：
