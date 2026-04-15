@@ -5,10 +5,19 @@ export type StorageMode = 'database' | 'local-file' | 'unknown';
 export interface AuthSessionUser {
   id: number;
   name: string;
+  username?: string;
   role: string;
   role_label: string;
   branch_id?: number;
   branch_name?: string;
+}
+
+export interface DemoAccount {
+  user_id: number;
+  username: string;
+  password: string;
+  description: string;
+  user: AuthSessionUser;
 }
 
 export function getBackendBaseUrl() {

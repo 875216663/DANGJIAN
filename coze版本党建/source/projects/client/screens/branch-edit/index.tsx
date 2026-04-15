@@ -11,8 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 export default function BranchEdit() {
   const router = useSafeRouter();
@@ -24,12 +23,14 @@ export default function BranchEdit() {
     code: '',
     description: '',
     establish_date: '',
+    renewal_reminder_date: '',
     secretary_name: '',
     status: 'active',
   });
 
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showRenewalDatePicker, setShowRenewalDatePicker] = useState(false);
 
   useEffect(() => {
     if (isEdit) {
@@ -40,15 +41,14 @@ export default function BranchEdit() {
   const loadBranchDetail = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/branches/${id}`, {
-        headers: { 'x-user-id': '1' },
-      });
+      const response = await fetch(getApiUrl(`/api/v1/branches/${id}`));
       const data = await response.json();
       setBranch({
         name: data.name || '',
         code: data.code || '',
         description: data.description || '',
         establish_date: data.establish_date || '',
+        renewal_reminder_date: data.renewal_reminder_date || '',
         secretary_name: data.secretary_name || '',
         status: data.status || 'active',
       });
@@ -74,14 +74,13 @@ export default function BranchEdit() {
     try {
       setLoading(true);
       const url = isEdit
-        ? `${BACKEND_BASE_URL}/api/v1/branches/${id}`
-        : `${BACKEND_BASE_URL}/api/v1/branches`;
+        ? getApiUrl(`/api/v1/branches/${id}`)
+        : getApiUrl('/api/v1/branches');
 
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': '1',
         },
         body: JSON.stringify(branch),
       });
@@ -168,6 +167,17 @@ export default function BranchEdit() {
                   <FontAwesome6 name="calendar" size={14} color="#DC2626" style={{ position: 'absolute', right: 12, top: 40 }} />
                 </TouchableOpacity>
 
+                <TouchableOpacity
+                  onPress={() => setShowRenewalDatePicker(true)}
+                  className="border border-gray-600 rounded-lg px-4 py-3"
+                >
+                  <Text className="text-gray-400 text-sm mb-1">换届提醒日期</Text>
+                  <Text className={branch.renewal_reminder_date ? 'text-white' : 'text-gray-500'}>
+                    {branch.renewal_reminder_date || '请选择日期'}
+                  </Text>
+                  <FontAwesome6 name="calendar-days" size={14} color="#DC2626" style={{ position: 'absolute', right: 12, top: 40 }} />
+                </TouchableOpacity>
+
                 <FormItem
                   label="支部书记"
                   value={branch.secretary_name}
@@ -232,6 +242,20 @@ export default function BranchEdit() {
               setShowDatePicker(false);
               if (date) {
                 setBranch({ ...branch, establish_date: formatDate(date) });
+              }
+            }}
+          />
+        )}
+
+        {showRenewalDatePicker && (
+          <DateTimePicker
+            value={parseDate(branch.renewal_reminder_date)}
+            mode="date"
+            display="default"
+            onChange={(event, date) => {
+              setShowRenewalDatePicker(false);
+              if (date) {
+                setBranch({ ...branch, renewal_reminder_date: formatDate(date) });
               }
             }}
           />

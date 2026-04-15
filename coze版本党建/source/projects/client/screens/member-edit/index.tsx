@@ -5,15 +5,13 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Modal,
   Alert,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 export default function MemberEdit() {
   const router = useSafeRouter();
@@ -31,29 +29,40 @@ export default function MemberEdit() {
     political_status: '中共党员',
     join_date: '',
     regular_date: '',
-    branch_name: '第一党支部',
+    branch_name: '',
     last_fee_month: '',
     status: 'active',
     remarks: '',
   });
 
+  const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showJoinDatePicker, setShowJoinDatePicker] = useState(false);
   const [showRegularDatePicker, setShowRegularDatePicker] = useState(false);
   const [showFeeMonthPicker, setShowFeeMonthPicker] = useState(false);
 
   useEffect(() => {
+    loadBranches();
     if (isEdit) {
       loadMemberDetail();
     }
   }, [id]);
 
+  const loadBranches = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/v1/branches'));
+      const data = await response.json();
+      setBranches(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Load branches error:', error);
+      setBranches([]);
+    }
+  };
+
   const loadMemberDetail = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/members/${id}`, {
-        headers: { 'x-user-id': '1' },
-      });
+      const response = await fetch(getApiUrl(`/api/v1/members/${id}`));
       const data = await response.json();
       setMember(data);
     } catch (error) {
@@ -78,14 +87,13 @@ export default function MemberEdit() {
     try {
       setLoading(true);
       const url = isEdit
-        ? `${BACKEND_BASE_URL}/api/v1/members/${id}`
-        : `${BACKEND_BASE_URL}/api/v1/members`;
+        ? getApiUrl(`/api/v1/members/${id}`)
+        : getApiUrl('/api/v1/members');
 
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': '1',
         },
         body: JSON.stringify(member),
       });
@@ -245,8 +253,64 @@ export default function MemberEdit() {
                   label="所属支部"
                   value={member.branch_name}
                   onChangeText={(text) => setMember({ ...member, branch_name: text })}
-                  placeholder="请输入所属支部"
+                  placeholder="请输入所属支部，可手动新增"
                 />
+                <Text className="text-xs leading-5 text-gray-500">
+                  可以直接手动填写支部名称；如果填写的是新支部名称，系统会在保存时自动创建对应支部。
+                </Text>
+                {branches.length > 0 && (
+                  <View className="flex-row flex-wrap gap-2">
+                    {branches.map((branch) => (
+                      <TouchableOpacity
+                        key={branch.id}
+                        onPress={() => setMember({ ...member, branch_name: branch.name })}
+                        className={`rounded-full border px-3 py-2 ${
+                          member.branch_name === branch.name
+                            ? 'border-red-500 bg-red-900/20'
+                            : 'border-gray-700 bg-gray-700'
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs ${
+                            member.branch_name === branch.name ? 'text-red-400' : 'text-gray-300'
+                          }`}
+                        >
+                          {branch.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
+              <Text className="text-white font-bold text-lg mb-4">党员状态</Text>
+              <View className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'active', label: '正常' },
+                  { value: 'probationary', label: '预备党员' },
+                  { value: 'transferred_out', label: '转出' },
+                  { value: 'suspended', label: '停止党籍' },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    onPress={() => setMember({ ...member, status: item.value })}
+                    className={`rounded-lg border py-3 ${
+                      member.status === item.value
+                        ? 'border-red-500 bg-red-900/20'
+                        : 'border-gray-700 bg-gray-700'
+                    }`}
+                  >
+                    <Text
+                      className={`text-center ${
+                        member.status === item.value ? 'text-red-400' : 'text-gray-300'
+                      }`}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 

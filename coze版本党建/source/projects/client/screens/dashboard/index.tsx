@@ -7,12 +7,12 @@ import {
   Modal,
   RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 const PLANNED_FEATURES = [
   { id: 'meetings', name: '三会一课', icon: 'calendar-check', color: '#F59E0B', route: '/meetings' },
@@ -23,7 +23,7 @@ const PLANNED_FEATURES = [
 
 export default function Dashboard() {
   const router = useSafeRouter();
-  const { user, users, switchUser, storageMode, backendBaseUrl } = useAuth();
+  const { user, accounts, login, logout, storageMode, backendBaseUrl } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [switcherVisible, setSwitcherVisible] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,12 +34,8 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const [membersRes, branchesRes] = await Promise.all([
-        fetch(`${BACKEND_BASE_URL}/api/v1/members?page=1&limit=100`, {
-          headers: { 'x-user-id': '1' },
-        }),
-        fetch(`${BACKEND_BASE_URL}/api/v1/branches`, {
-          headers: { 'x-user-id': '1' },
-        }),
+        fetch(getApiUrl('/api/v1/members?page=1&limit=100')),
+        fetch(getApiUrl('/api/v1/branches')),
       ]);
 
       const membersData = await membersRes.json();
@@ -59,6 +55,12 @@ export default function Dashboard() {
   useEffect(() => {
     loadData();
   }, [loadData, user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -117,12 +119,15 @@ export default function Dashboard() {
                 <Text className="mt-1 text-sm text-red-100">
                   {user?.role_label || '未知角色'} {user?.branch_name ? `· ${user.branch_name}` : '· 全局视角'}
                 </Text>
+                <Text className="mt-1 text-xs text-red-100">
+                  登录账号：{user?.username || '未绑定'}
+                </Text>
               </View>
               <View className="items-end">
                 <Text className="text-xs text-red-100">
                   {storageMode === 'database' ? 'Neon 数据库' : '本地文件模式'}
                 </Text>
-                <Text className="mt-2 text-xs text-red-100">点击切换账号</Text>
+                <Text className="mt-2 text-xs text-red-100">点击切换或退出账号</Text>
               </View>
             </View>
             <Text className="mt-3 text-xs text-red-100">{backendBaseUrl}</Text>
@@ -277,7 +282,7 @@ export default function Dashboard() {
                 2. 再通过“党员管理”逐步录入、导入和维护党员档案。
               </Text>
               <Text className="text-sm leading-6 text-gray-400">
-                3. 如需演示不同角色效果，可点击顶部“当前演示账号”切换身份。
+                3. 如需切换演示账号，可点击顶部“当前演示账号”重新登录其他账号。
               </Text>
               <Text className="text-sm leading-6 text-gray-400">
                 4. 当前版本所有有效修改都会优先保存到数据库。
@@ -304,32 +309,44 @@ export default function Dashboard() {
                 <FontAwesome6 name="xmark" size={20} color="white" />
               </TouchableOpacity>
             </View>
-            {users.map((candidate) => (
+            {accounts.map((account) => (
               <TouchableOpacity
-                key={candidate.id}
+                key={account.username}
                 onPress={async () => {
-                  await switchUser(candidate.id);
+                  await login(account.username, account.password);
                   setSwitcherVisible(false);
                 }}
                 className={`mb-3 rounded-2xl border px-4 py-4 ${
-                  candidate.id === user?.id
+                  account.user.id === user?.id
                     ? 'border-red-500 bg-red-950/40'
                     : 'border-gray-700 bg-gray-800'
                 }`}
               >
                 <View className="flex-row items-center justify-between">
                   <View>
-                    <Text className="text-base font-semibold text-white">{candidate.name}</Text>
+                    <Text className="text-base font-semibold text-white">{account.user.name}</Text>
                     <Text className="mt-1 text-sm text-gray-400">
-                      {candidate.role_label} {candidate.branch_name ? `· ${candidate.branch_name}` : '· 全局视角'}
+                      账号：{account.username} · 密码：{account.password}
+                    </Text>
+                    <Text className="mt-1 text-sm text-gray-500">
+                      {account.user.branch_name ? `${account.user.branch_name} · ` : ''}{account.description}
                     </Text>
                   </View>
-                  {candidate.id === user?.id && (
+                  {account.user.id === user?.id && (
                     <FontAwesome6 name="circle-check" size={18} color="#F87171" />
                   )}
                 </View>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity
+              onPress={async () => {
+                await logout();
+                setSwitcherVisible(false);
+              }}
+              className="mt-2 rounded-2xl border border-red-900/70 bg-red-950/40 px-4 py-4"
+            >
+              <Text className="text-center font-semibold text-red-300">退出当前账号</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

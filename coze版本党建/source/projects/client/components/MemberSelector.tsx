@@ -10,8 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 interface Member {
   id: number;
@@ -75,11 +74,9 @@ export default function MemberSelector({
     setLoading(true);
     try {
       const url = branchId
-        ? `${BACKEND_BASE_URL}/api/v1/branches/${branchId}/members`
-        : `${BACKEND_BASE_URL}/api/v1/members`;
-      const response = await fetch(url, {
-        headers: { 'x-user-id': '1', 'x-user-role': 'party_committee' },
-      });
+        ? getApiUrl(`/api/v1/branches/${branchId}/members`)
+        : getApiUrl('/api/v1/members');
+      const response = await fetch(url);
       const data = await response.json();
       setMembers(data.data || data || []);
     } catch (error) {

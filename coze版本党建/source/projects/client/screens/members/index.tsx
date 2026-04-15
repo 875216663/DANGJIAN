@@ -8,14 +8,14 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { createFormDataFile } from '@/utils';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 export default function Members() {
   const router = useSafeRouter();
@@ -41,9 +41,7 @@ export default function Members() {
         ...(statusFilter && { status: statusFilter }),
       });
 
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/members?${params}`, {
-        headers: { 'x-user-id': '1' },
-      });
+      const response = await fetch(getApiUrl(`/api/v1/members?${params}`));
 
       const data = await response.json();
       setMembers(data.data || []);
@@ -58,12 +56,16 @@ export default function Members() {
     loadMembers();
   }, [loadMembers]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadMembers();
+    }, [loadMembers])
+  );
+
   // 导出数据
   const handleExport = async () => {
     try {
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/members/export`, {
-        headers: { 'x-user-id': '1' },
-      });
+      const response = await fetch(getApiUrl('/api/v1/members/export'));
 
       if (response.ok) {
         await response.blob();
@@ -116,12 +118,8 @@ export default function Members() {
        * 接口：POST /api/v1/members/import
        * Body 参数：file: File
        */
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/members/import`, {
+      const response = await fetch(getApiUrl('/api/v1/members/import'), {
         method: 'POST',
-        headers: {
-          'x-user-id': '1',
-          'x-user-role': 'party_committee',
-        },
         body: formData,
       });
 

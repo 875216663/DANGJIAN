@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 export default function BranchDetail() {
   const router = useSafeRouter();
@@ -27,15 +27,17 @@ export default function BranchDetail() {
     loadBranchDetail();
   }, [id]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      loadBranchDetail();
+    }, [id])
+  );
+
   const loadBranchDetail = async () => {
     try {
       const [branchRes, membersRes] = await Promise.all([
-        fetch(`${BACKEND_BASE_URL}/api/v1/branches/${id}`, {
-          headers: { 'x-user-id': '1' },
-        }),
-        fetch(`${BACKEND_BASE_URL}/api/v1/branches/${id}/members`, {
-          headers: { 'x-user-id': '1' },
-        }),
+        fetch(getApiUrl(`/api/v1/branches/${id}`)),
+        fetch(getApiUrl(`/api/v1/branches/${id}/members`)),
       ]);
 
       const branchData = await branchRes.json();
@@ -58,9 +60,8 @@ export default function BranchDetail() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const response = await fetch(`${BACKEND_BASE_URL}/api/v1/branches/${id}`, {
+            const response = await fetch(getApiUrl(`/api/v1/branches/${id}`), {
               method: 'DELETE',
-              headers: { 'x-user-id': '1', 'x-user-role': 'party_committee' },
             });
             const payload = await response.json();
 

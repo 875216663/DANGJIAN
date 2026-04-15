@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 export default function MemberDetail() {
   const router = useSafeRouter();
@@ -25,11 +25,15 @@ export default function MemberDetail() {
     loadMemberDetail();
   }, [id]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      loadMemberDetail();
+    }, [id])
+  );
+
   const loadMemberDetail = async () => {
     try {
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/members/${id}`, {
-        headers: { 'x-user-id': '1' },
-      });
+      const response = await fetch(getApiUrl(`/api/v1/members/${id}`));
       const data = await response.json();
       setMember(data);
     } catch (error) {
@@ -47,9 +51,8 @@ export default function MemberDetail() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const response = await fetch(`${BACKEND_BASE_URL}/api/v1/members/${id}`, {
+            const response = await fetch(getApiUrl(`/api/v1/members/${id}`), {
               method: 'DELETE',
-              headers: { 'x-user-id': '1', 'x-user-role': 'party_committee' },
             });
 
             const payload = await response.json();

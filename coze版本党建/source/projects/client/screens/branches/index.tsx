@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-
-const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
+import { getApiUrl } from '@/utils/api';
 
 export default function Branches() {
   const router = useSafeRouter();
@@ -24,9 +24,7 @@ export default function Branches() {
   const loadBranches = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_BASE_URL}/api/v1/branches`, {
-        headers: { 'x-user-id': '1' },
-      });
+      const response = await fetch(getApiUrl('/api/v1/branches'));
 
       const data = await response.json();
       setBranches(data || []);
@@ -40,6 +38,12 @@ export default function Branches() {
   useEffect(() => {
     loadBranches();
   }, [loadBranches]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBranches();
+    }, [loadBranches])
+  );
 
   const filteredBranches = branches.filter((branch) =>
     [branch.name, branch.code, branch.secretary_name]

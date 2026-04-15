@@ -212,7 +212,7 @@ router.post(
   requireRole('party_committee', 'party_inspection', 'branch_secretary'),
   async (req: AuthRequest, res) => {
   try {
-    const { name, code, description, establish_date, secretary_id, secretary_name, status } = req.body as Record<string, string>;
+    const { name, code, description, establish_date, renewal_reminder_date, secretary_id, secretary_name, status } = req.body as Record<string, string>;
 
     if (!name?.trim()) {
       return res.status(400).json({ error: '请输入支部名称' });
@@ -229,7 +229,10 @@ router.post(
         code: code.trim(),
         description: description?.trim() || '',
         establish_date: establish_date?.trim() || new Date().toISOString().slice(0, 10),
-        renewal_reminder_date: establish_date?.trim() || new Date().toISOString().slice(0, 10),
+        renewal_reminder_date:
+          renewal_reminder_date?.trim() ||
+          establish_date?.trim() ||
+          new Date().toISOString().slice(0, 10),
         secretary_id: secretary_id ? Number(secretary_id) : undefined,
         secretary_name: secretary_name?.trim() || '',
         status: status?.trim() || 'active',
@@ -260,7 +263,7 @@ router.put(
   async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const { name, code, description, establish_date, secretary_id, secretary_name, status } = req.body as Record<string, string>;
+    const { name, code, description, establish_date, renewal_reminder_date, secretary_id, secretary_name, status } = req.body as Record<string, string>;
 
     const updated = await updateStore((store) => {
       const branch = store.branches.find((item) => item.id === id);
@@ -273,7 +276,10 @@ router.put(
       branch.code = code?.trim() || branch.code;
       branch.description = description?.trim() || '';
       branch.establish_date = establish_date?.trim() || branch.establish_date;
-      branch.renewal_reminder_date = establish_date?.trim() || branch.renewal_reminder_date;
+      branch.renewal_reminder_date =
+        renewal_reminder_date?.trim() ||
+        establish_date?.trim() ||
+        branch.renewal_reminder_date;
       branch.secretary_id = secretary_id ? Number(secretary_id) : branch.secretary_id;
       branch.secretary_name = secretary_name?.trim() || branch.secretary_name;
       branch.status = status?.trim() || branch.status;
