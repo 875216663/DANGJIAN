@@ -6,23 +6,17 @@ import {
   TouchableOpacity,
   Dimensions,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 // API Base URL
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
-
-// Mock用户数据（实际应该从登录接口获取）
-const mockUser = {
-  name: '张三',
-  branch: '第一党支部',
-  role: '支部书记',
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop',
-};
 
 // 导航菜单项
 const menuItems = [
@@ -36,8 +30,10 @@ const menuItems = [
 
 export default function Dashboard() {
   const router = useSafeRouter();
+  const { user, users, switchUser, storageMode, backendBaseUrl } = useAuth();
   const [activeMenu, setActiveMenu] = useState('members');
   const [refreshing, setRefreshing] = useState(false);
+  const [switcherVisible, setSwitcherVisible] = useState(false);
 
   // 看板数据
   const [dashboardData, setDashboardData] = useState({
@@ -56,80 +52,52 @@ export default function Dashboard() {
   // 通知公告
   const [notices, setNotices] = useState<any[]>([]);
 
-  // 加载数据
+  const loadDashboardData = useCallback(async () => {
+    try {
+      const dashRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/dashboard`, {
+        headers: { 'x-user-id': '1' },
+      });
+      const dashData = await dashRes.json();
+      setDashboardData(dashData);
+
+      const todoRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/todos`, {
+        headers: { 'x-user-id': '1' },
+      });
+      const todoData = await todoRes.json();
+      setTodos(todoData);
+
+      const alertRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/alerts`, {
+        headers: { 'x-user-id': '1' },
+      });
+      const alertData = await alertRes.json();
+      setAlerts(alertData);
+
+      const noticeRes = await fetch(`${BACKEND_BASE_URL}/api/v1/notices?page=1&limit=5`, {
+        headers: { 'x-user-id': '1' },
+      });
+      const noticeData = await noticeRes.json();
+      setNotices(noticeData.data || []);
+    } catch (error) {
+      console.error('Load data error:', error);
+    }
+  }, [BACKEND_BASE_URL]);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // 加载看板数据
-        const dashRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/dashboard`, {
-          headers: { 'x-user-id': '1' }, // Mock用户ID
-        });
-        const dashData = await dashRes.json();
-        setDashboardData(dashData);
-
-        // 加载待办
-        const todoRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/todos`, {
-          headers: { 'x-user-id': '1' },
-        });
-        const todoData = await todoRes.json();
-        setTodos(todoData);
-
-        // 加载预警
-        const alertRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/alerts`, {
-          headers: { 'x-user-id': '1' },
-        });
-        const alertData = await alertRes.json();
-        setAlerts(alertData);
-
-        // 加载通知
-        const noticeRes = await fetch(`${BACKEND_BASE_URL}/api/v1/notices?page=1&limit=5`, {
-          headers: { 'x-user-id': '1' },
-        });
-        const noticeData = await noticeRes.json();
-        setNotices(noticeData.data || []);
-      } catch (error) {
-        console.error('Load data error:', error);
-      }
-    };
-
-    fetchData();
-  }, []);
+    loadDashboardData();
+  }, [loadDashboardData, user?.id]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // 重新加载数据
     (async () => {
       try {
-        const dashRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/dashboard`, {
-          headers: { 'x-user-id': '1' },
-        });
-        const dashData = await dashRes.json();
-        setDashboardData(dashData);
-
-        const todoRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/todos`, {
-          headers: { 'x-user-id': '1' },
-        });
-        const todoData = await todoRes.json();
-        setTodos(todoData);
-
-        const alertRes = await fetch(`${BACKEND_BASE_URL}/api/v1/dashboard/alerts`, {
-          headers: { 'x-user-id': '1' },
-        });
-        const alertData = await alertRes.json();
-        setAlerts(alertData);
-
-        const noticeRes = await fetch(`${BACKEND_BASE_URL}/api/v1/notices?page=1&limit=5`, {
-          headers: { 'x-user-id': '1' },
-        });
-        const noticeData = await noticeRes.json();
-        setNotices(noticeData.data || []);
+        await loadDashboardData();
       } catch (error) {
         console.error('Load data error:', error);
       } finally {
         setRefreshing(false);
       }
     })();
-  }, []);
+  }, [loadDashboardData]);
 
   // 快捷入口
   const quickActions = [
@@ -175,15 +143,31 @@ export default function Dashboard() {
           </View>
 
           {/* 用户信息 */}
-          <View className="mt-4 flex-row items-center justify-between bg-white/10 rounded-lg p-3">
-            <View className="flex-row items-center space-x-3">
-              <Text className="text-white font-medium">{mockUser.name}</Text>
-              <Text className="text-red-200 text-sm">|</Text>
-              <Text className="text-red-200 text-sm">{mockUser.branch}</Text>
-              <Text className="text-red-200 text-sm">|</Text>
-              <Text className="text-red-200 text-sm">{mockUser.role}</Text>
+          <TouchableOpacity
+            onPress={() => setSwitcherVisible(true)}
+            className="mt-4 bg-white/10 rounded-lg p-3"
+            activeOpacity={0.85}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center space-x-3">
+                <Text className="text-white font-medium">{user?.name || '未登录用户'}</Text>
+                <Text className="text-red-200 text-sm">|</Text>
+                <Text className="text-red-200 text-sm">{user?.branch_name || '全局视角'}</Text>
+                <Text className="text-red-200 text-sm">|</Text>
+                <Text className="text-red-200 text-sm">{user?.role_label || '未知角色'}</Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="mr-2 text-xs text-red-100">
+                  {storageMode === 'database' ? 'Neon 数据库' : '本地文件模式'}
+                </Text>
+                <FontAwesome6 name="chevron-down" size={12} color="#FECACA" />
+              </View>
             </View>
-          </View>
+            <View className="mt-2 flex-row items-center justify-between">
+              <Text className="text-xs text-red-100">当前后端：{backendBaseUrl}</Text>
+              <Text className="text-xs text-red-100">点击切换操作者</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -477,6 +461,49 @@ export default function Dashboard() {
           </View>
         </View>
       </View>
+      <Modal
+        visible={switcherVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSwitcherVisible(false)}
+      >
+        <View className="flex-1 justify-end bg-black/60">
+          <View className="rounded-t-3xl bg-gray-900 px-4 pb-8 pt-5">
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="text-lg font-bold text-white">切换当前操作者</Text>
+              <TouchableOpacity onPress={() => setSwitcherVisible(false)}>
+                <FontAwesome6 name="xmark" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
+            {users.map((candidate) => (
+              <TouchableOpacity
+                key={candidate.id}
+                onPress={async () => {
+                  await switchUser(candidate.id);
+                  setSwitcherVisible(false);
+                }}
+                className={`mb-3 rounded-2xl border px-4 py-4 ${
+                  candidate.id === user?.id
+                    ? 'border-red-500 bg-red-950/40'
+                    : 'border-gray-700 bg-gray-800'
+                }`}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-base font-semibold text-white">{candidate.name}</Text>
+                    <Text className="mt-1 text-sm text-gray-400">
+                      {candidate.role_label} {candidate.branch_name ? `· ${candidate.branch_name}` : '· 全局'}
+                    </Text>
+                  </View>
+                  {candidate.id === user?.id && (
+                    <FontAwesome6 name="circle-check" size={18} color="#F87171" />
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }

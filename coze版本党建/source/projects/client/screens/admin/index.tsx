@@ -3,21 +3,24 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
 export default function Admin() {
   const router = useSafeRouter();
+  const { user, storageMode, backendBaseUrl } = useAuth();
   const [members, setMembers] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [notices, setNotices] = useState<any[]>([]);
   const [studyFiles, setStudyFiles] = useState<any[]>([]);
+  const [backendStatus, setBackendStatus] = useState<'online' | 'offline'>('offline');
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [membersRes, branchesRes, meetingsRes, noticesRes, studyRes] = await Promise.all([
+        const [membersRes, branchesRes, meetingsRes, noticesRes, studyRes, healthRes] = await Promise.all([
           fetch(`${BACKEND_BASE_URL}/api/v1/members?page=1&limit=100`, {
             headers: { 'x-user-id': '1', 'x-user-role': 'party_committee' },
           }),
@@ -31,6 +34,7 @@ export default function Admin() {
             headers: { 'x-user-id': '1', 'x-user-role': 'party_committee' },
           }),
           fetch(`${BACKEND_BASE_URL}/api/v1/study/files`),
+          fetch(`${BACKEND_BASE_URL}/api/v1/health`),
         ]);
 
         const membersData = await membersRes.json();
@@ -38,19 +42,22 @@ export default function Admin() {
         const meetingsData = await meetingsRes.json();
         const noticesData = await noticesRes.json();
         const studyData = await studyRes.json();
+        const healthData = await healthRes.json();
 
         setMembers(membersData.data || []);
         setBranches(branchesData || []);
         setMeetings(meetingsData.data || []);
         setNotices(noticesData.data || []);
         setStudyFiles(studyData.files || []);
+        setBackendStatus(healthData.status === 'ok' ? 'online' : 'offline');
       } catch (error) {
         console.error('Load admin data error:', error);
+        setBackendStatus('offline');
       }
     };
 
     loadData();
-  }, []);
+  }, [BACKEND_BASE_URL, user?.id]);
 
   const overviewCards = useMemo(
     () => [
@@ -87,6 +94,17 @@ export default function Admin() {
             <Text className="text-gray-400 text-sm">
               当前页面已接入真实业务数据，可用于查看组织规模、通知发布、会议执行和资料沉淀情况。
             </Text>
+            <View className="mt-3 rounded-xl bg-gray-900/70 p-3">
+              <Text className="text-sm text-gray-300">当前操作者：{user?.name || '未识别'}</Text>
+              <Text className="mt-1 text-sm text-gray-300">角色：{user?.role_label || '未知'}</Text>
+              <Text className="mt-1 text-sm text-gray-300">
+                数据存储：{storageMode === 'database' ? 'Neon 数据库' : '本地文件模式'}
+              </Text>
+              <Text className="mt-1 text-sm text-gray-300">
+                后端状态：{backendStatus === 'online' ? '在线' : '离线'}
+              </Text>
+              <Text className="mt-1 text-xs text-gray-500">{backendBaseUrl}</Text>
+            </View>
           </View>
 
           <Text className="text-white font-bold text-lg mb-3">系统概览</Text>

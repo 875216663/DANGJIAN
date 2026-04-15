@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import authRouter from './routes/auth';
 import dashboardRouter from './routes/dashboard';
 import membersRouter from './routes/members';
 import branchesRouter from './routes/branches';
@@ -31,6 +32,7 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // API 路由
+app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/members', membersRouter);
 app.use('/api/v1/branches', branchesRouter);
