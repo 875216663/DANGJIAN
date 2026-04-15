@@ -57,3 +57,13 @@ cd /Users/caofei/Desktop/coze版本党建/source/projects/preview
 
 - 当前这台机器的终端环境如果无法访问外网，会导致公网发布失败
 - 失败时项目本身不受影响，仍可本地打开和运行
+
+## GitHub Pages 持久部署
+
+仓库已经补充 GitHub Pages 自动部署工作流。
+
+- 当前正式发布目录为 `source/projects/release`
+- 当 `main` 分支中的 `source/projects/release` 有更新时，会自动发布
+- 预期正式地址为：`https://875216663.github.io/DANGJIAN/`
+
+如果首次访问返回 404，通常是 GitHub Actions 尚未执行完毕，稍等 1 到 3 分钟后刷新即可。
