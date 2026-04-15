@@ -1,0 +1,2976 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>中英人寿智慧党务人员管理系统</title>
+    <style>
+      :root {
+        --bg: #f4eee7;
+        --panel: rgba(255, 255, 255, 0.86);
+        --panel-strong: #ffffff;
+        --line: rgba(104, 49, 28, 0.12);
+        --text: #2d1f18;
+        --muted: #786055;
+        --primary: #b91c1c;
+        --primary-deep: #8f1018;
+        --primary-soft: rgba(185, 28, 28, 0.1);
+        --success: #0f766e;
+        --warning: #c2410c;
+        --danger: #be123c;
+        --shadow: 0 18px 50px rgba(95, 55, 39, 0.14);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(185, 28, 28, 0.14), transparent 24%),
+          radial-gradient(circle at top right, rgba(194, 65, 12, 0.1), transparent 18%),
+          linear-gradient(180deg, #fffaf6 0%, #f4eee7 100%);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .screen {
+        min-height: 100vh;
+      }
+
+      .login-shell {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .login-card,
+      .panel,
+      .metric-card,
+      .toolbar,
+      .table-panel,
+      .card-item,
+      .modal-card,
+      .toast,
+      .account-box {
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .login-card {
+        width: min(1080px, 100%);
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+      }
+
+      .login-hero {
+        padding: 34px;
+        color: #fff;
+        background: linear-gradient(135deg, #9f1239 0%, #b91c1c 48%, #c2410c 100%);
+      }
+
+      .login-hero h1,
+      .login-form h2,
+      .section-title h3,
+      .card-item h4,
+      .metric-card h4,
+      .empty-state h3,
+      .modal-header h3,
+      .topbar h2,
+      .account-box h4 {
+        margin: 0;
+      }
+
+      .login-hero p,
+      .section-title p,
+      .metric-card p,
+      .card-item p,
+      .empty-state p,
+      .label,
+      .login-form .hint,
+      .topbar p,
+      .account-box p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .login-hero p {
+        color: rgba(255, 247, 242, 0.84);
+      }
+
+      .brand-mark {
+        width: 58px;
+        height: 58px;
+        border-radius: 18px;
+        display: inline-grid;
+        place-items: center;
+        margin-bottom: 16px;
+        color: #fff;
+        font-size: 30px;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.24);
+      }
+
+      .login-title {
+        margin: 0 0 14px;
+        font-size: 34px;
+        line-height: 1.24;
+      }
+
+      .hero-list,
+      .demo-list,
+      .field-grid,
+      .metric-grid,
+      .content-grid,
+      .stack,
+      .card-grid,
+      .nav-list,
+      .modal-actions,
+      .action-group,
+      .page-actions,
+      .meta-grid,
+      .request-list,
+      .profile-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .hero-list {
+        margin-top: 24px;
+      }
+
+      .hero-item {
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .login-form {
+        padding: 34px;
+        background: rgba(255, 251, 247, 0.94);
+      }
+
+      .login-form h2 {
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field label {
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .field input,
+      .field select,
+      .field textarea {
+        min-height: 46px;
+        padding: 11px 14px;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+
+      .field textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+
+      .primary-btn,
+      .ghost-btn,
+      .danger-btn,
+      .nav-btn,
+      .toolbar-btn,
+      .tag,
+      .mini-btn {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+      }
+
+      .primary-btn,
+      .danger-btn {
+        color: #fff;
+      }
+
+      .primary-btn {
+        background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+        border-color: rgba(185, 28, 28, 0.42);
+      }
+
+      .danger-btn {
+        background: linear-gradient(135deg, var(--danger), #9f1239);
+        border-color: rgba(190, 18, 60, 0.35);
+      }
+
+      .ghost-btn,
+      .toolbar-btn,
+      .nav-btn,
+      .mini-btn {
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .primary-btn,
+      .ghost-btn,
+      .danger-btn,
+      .toolbar-btn {
+        min-height: 46px;
+        padding: 11px 16px;
+      }
+
+      .mini-btn {
+        padding: 8px 12px;
+      }
+
+      .demo-list {
+        margin-top: 18px;
+      }
+
+      .account-box {
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .account-box h4 {
+        margin-bottom: 8px;
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        height: 100vh;
+        padding: 24px 18px;
+        border-right: 1px solid var(--line);
+        background: rgba(255, 250, 245, 0.8);
+        backdrop-filter: blur(18px);
+      }
+
+      .brand-card {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: linear-gradient(135deg, rgba(185, 28, 28, 0.08), rgba(194, 65, 12, 0.04));
+      }
+
+      .brand-card .brand-mark {
+        background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+        border-color: rgba(185, 28, 28, 0.22);
+        box-shadow: 0 10px 24px rgba(185, 28, 28, 0.2);
+      }
+
+      .brand-card h3 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+
+      .brand-card p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .nav-list {
+        gap: 10px;
+      }
+
+      .nav-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 50px;
+        padding: 12px 16px;
+        color: var(--muted);
+        transition: transform 160ms ease, background 160ms ease;
+      }
+
+      .nav-btn.active {
+        color: #fff;
+        border-color: rgba(185, 28, 28, 0.5);
+        background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+      }
+
+      .nav-btn:hover,
+      .toolbar-btn:hover,
+      .primary-btn:hover,
+      .ghost-btn:hover,
+      .danger-btn:hover,
+      .mini-btn:hover {
+        transform: translateY(-1px);
+      }
+
+      .sidebar-footer {
+        display: grid;
+        gap: 10px;
+        margin-top: auto;
+      }
+
+      .main {
+        padding: 24px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+
+      .topbar h2 {
+        font-size: 30px;
+        margin-bottom: 6px;
+      }
+
+      .topbar-right {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.84);
+      }
+
+      .tag.primary {
+        color: var(--primary);
+        background: var(--primary-soft);
+      }
+
+      .tag.success {
+        color: var(--success);
+        background: rgba(15, 118, 110, 0.12);
+      }
+
+      .tag.warning {
+        color: var(--warning);
+        background: rgba(194, 65, 12, 0.12);
+      }
+
+      .tag.danger {
+        color: var(--danger);
+        background: rgba(190, 18, 60, 0.12);
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--success);
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 18px;
+      }
+
+      .metric-card {
+        padding: 18px;
+      }
+
+      .metric-card h4 {
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .metric-number {
+        display: block;
+        margin: 10px 0 8px;
+        font-size: 30px;
+        font-weight: 700;
+      }
+
+      .content-grid {
+        grid-template-columns: 1.2fr 0.9fr;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .section-title h3 {
+        margin-bottom: 6px;
+        font-size: 20px;
+      }
+
+      .panel,
+      .table-panel {
+        padding: 20px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+
+      .toolbar-left,
+      .toolbar-right,
+      .topbar-right,
+      .action-group,
+      .page-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .toolbar input,
+      .toolbar select {
+        min-height: 44px;
+        min-width: 180px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .table-panel {
+        overflow: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 14px 12px;
+        border-bottom: 1px solid rgba(104, 49, 28, 0.08);
+        text-align: left;
+        vertical-align: top;
+        white-space: nowrap;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .stack {
+        gap: 18px;
+      }
+
+      .card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .card-item {
+        padding: 18px;
+      }
+
+      .card-item h4 {
+        margin-bottom: 8px;
+        font-size: 17px;
+      }
+
+      .meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 14px;
+      }
+
+      .meta-box {
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(104, 49, 28, 0.08);
+      }
+
+      .meta-box strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 20px;
+      }
+
+      .request-list {
+        gap: 12px;
+      }
+
+      .request-item {
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(104, 49, 28, 0.08);
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .request-item h4 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      .request-item p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .empty-state {
+        padding: 34px 20px;
+        text-align: center;
+        border-radius: 20px;
+        border: 1px dashed rgba(104, 49, 28, 0.2);
+        background: rgba(255, 255, 255, 0.64);
+      }
+
+      .empty-state h3 {
+        margin-bottom: 8px;
+        font-size: 20px;
+      }
+
+      .profile-grid {
+        grid-template-columns: 0.9fr 1.1fr;
+      }
+
+      .kv-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .kv-item {
+        display: grid;
+        gap: 6px;
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid rgba(104, 49, 28, 0.08);
+      }
+
+      .kv-item span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .kv-item strong {
+        font-size: 16px;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(45, 31, 24, 0.46);
+        backdrop-filter: blur(7px);
+      }
+
+      .modal-card {
+        width: min(940px, 100%);
+        max-height: min(88vh, 960px);
+        overflow: auto;
+        padding: 22px;
+        background: rgba(255, 251, 247, 0.96);
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .modal-header p {
+        margin: 6px 0 0;
+        color: var(--muted);
+      }
+
+      .icon-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .field-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .field.full {
+        grid-column: 1 / -1;
+      }
+
+      .modal-actions {
+        grid-template-columns: repeat(2, minmax(0, 140px));
+        justify-content: end;
+        margin-top: 10px;
+      }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 70;
+        min-width: 240px;
+        max-width: 420px;
+        padding: 14px 16px;
+        color: #fff;
+        background: rgba(45, 31, 24, 0.94);
+      }
+
+      .toast.success {
+        background: rgba(15, 118, 110, 0.94);
+      }
+
+      .toast.warning {
+        background: rgba(194, 65, 12, 0.94);
+      }
+
+      .toast.danger {
+        background: rgba(190, 18, 60, 0.94);
+      }
+
+      @media (max-width: 1180px) {
+        .metric-grid,
+        .content-grid,
+        .card-grid,
+        .profile-grid,
+        .login-card {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 920px) {
+        .app-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: static;
+          height: auto;
+        }
+
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .main,
+        .sidebar,
+        .login-hero,
+        .login-form {
+          padding: 16px;
+        }
+
+        .topbar,
+        .toolbar,
+        .section-title,
+        .modal-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .toolbar-left,
+        .toolbar-right,
+        .topbar-right,
+        .action-group,
+        .page-actions {
+          width: 100%;
+        }
+
+        .toolbar input,
+        .toolbar select,
+        .toolbar button,
+        .modal-actions button {
+          width: 100%;
+        }
+
+        .modal-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="login-screen" class="screen login-shell">
+      <div class="login-card">
+        <section class="login-hero">
+          <div class="brand-mark">党</div>
+          <h1 class="login-title">中英人寿智慧党务<br />人员管理系统</h1>
+          <p>当前版本只围绕“人员管理”落地，包含登录、角色分空间、档案管理、支部管理、账号权限和变更审批。</p>
+
+          <div class="hero-list">
+            <div class="hero-item">党委领导：看全局、看审批、看人员结构</div>
+            <div class="hero-item">党建纪检部：建档、改档、导入导出、账号权限</div>
+            <div class="hero-item">党支部书记/委员：管理本支部党员，提交敏感变更</div>
+            <div class="hero-item">普通党员：维护本人信息，查看本支部通讯录</div>
+          </div>
+        </section>
+
+        <section class="login-form">
+          <h2>账号登录</h2>
+          <p class="hint">登录后系统会按角色自动进入对应空间。</p>
+
+          <form id="login-form" class="stack" style="margin-top: 18px;">
+            <div class="field">
+              <label>账号</label>
+              <input id="login-username" name="username" autocomplete="username" placeholder="请输入账号" required />
+            </div>
+            <div class="field">
+              <label>密码</label>
+              <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" required />
+            </div>
+            <button class="primary-btn" type="submit">登录系统</button>
+          </form>
+
+          <div class="demo-list">
+            <div class="account-box">
+              <h4>演示账号</h4>
+              <p>以下账号默认密码均为 <strong>123456</strong>，可点击一键填充。</p>
+            </div>
+            <div class="account-box">
+              <h4>党委领导</h4>
+              <p>账号：leader01</p>
+              <button class="ghost-btn" data-fill-login="leader01">填充此账号</button>
+            </div>
+            <div class="account-box">
+              <h4>党建纪检部</h4>
+              <p>账号：dept01</p>
+              <button class="ghost-btn" data-fill-login="dept01">填充此账号</button>
+            </div>
+            <div class="account-box">
+              <h4>党支部书记/委员</h4>
+              <p>账号：branch01</p>
+              <button class="ghost-btn" data-fill-login="branch01">填充此账号</button>
+            </div>
+            <div class="account-box">
+              <h4>普通党员</h4>
+              <p>账号：member01</p>
+              <button class="ghost-btn" data-fill-login="member01">填充此账号</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="app-screen" class="screen hidden">
+      <div class="app-shell">
+        <aside class="sidebar">
+          <section class="brand-card">
+            <div class="brand-mark">党</div>
+            <h3>人员管理空间</h3>
+            <p id="sidebar-role-label">按角色展示可访问页面和数据范围。</p>
+          </section>
+
+          <nav id="nav-list" class="nav-list"></nav>
+
+          <div class="sidebar-footer">
+            <button class="ghost-btn" id="export-data-btn">导出本地数据</button>
+            <button class="ghost-btn" id="reset-data-btn">恢复演示数据</button>
+            <button class="danger-btn" id="logout-btn">退出登录</button>
+          </div>
+        </aside>
+
+        <main class="main">
+          <header class="topbar">
+            <div>
+              <h2 id="page-title">工作台</h2>
+              <p id="page-desc">人员管理角色空间</p>
+            </div>
+            <div class="topbar-right">
+              <div class="tag"><span class="dot"></span><span id="current-user-name">未登录</span></div>
+              <div class="tag primary" id="current-role-name">角色</div>
+              <div class="tag" id="today-label"></div>
+            </div>
+          </header>
+
+          <div id="page-content"></div>
+        </main>
+      </div>
+    </div>
+
+    <div id="modal" class="modal hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 id="modal-title">编辑</h3>
+            <p id="modal-desc">保存后写入浏览器本地存储。</p>
+          </div>
+          <button id="modal-close" class="icon-btn" type="button">×</button>
+        </div>
+
+        <form id="modal-form">
+          <div id="modal-fields" class="field-grid"></div>
+          <div class="modal-actions">
+            <button class="ghost-btn" type="button" id="modal-cancel">取消</button>
+            <button class="primary-btn" type="submit">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <input id="import-file" type="file" accept=".json,application/json" class="hidden" />
+    <div id="toast" class="toast hidden"></div>
+
+    <script>
+      const ROLE_LABELS = {
+        leader: "党委领导",
+        dept: "党建纪检部",
+        branch_admin: "党支部书记/委员",
+        member: "普通党员",
+      };
+
+      const PAGE_META = {
+        dashboard: { title: "首页工作台", desc: "按角色展示待办、统计和快捷入口" },
+        members: { title: "党员管理", desc: "维护党员档案、查看详情和提交变更" },
+        branches: { title: "党支部管理", desc: "查看支部结构、书记、成员数量和班子信息" },
+        approvals: { title: "审批中心", desc: "处理或查看人员变更审批记录" },
+        accounts: { title: "账号与权限", desc: "维护登录账号、角色和启停状态" },
+        my_branch: { title: "本支部信息", desc: "查看并维护本支部基础信息" },
+        branch_directory: { title: "本支部通讯录", desc: "查看本支部公开成员信息" },
+        profile: { title: "个人中心", desc: "查看个人资料、修改密码和提交个人变更" },
+      };
+
+      const PAGES_BY_ROLE = {
+        leader: ["dashboard", "members", "branches", "approvals", "profile"],
+        dept: ["dashboard", "members", "branches", "accounts", "approvals", "profile"],
+        branch_admin: ["dashboard", "members", "my_branch", "approvals", "profile"],
+        member: ["dashboard", "branch_directory", "profile"],
+      };
+
+      const DEFAULT_PAGE_BY_ROLE = {
+        leader: "dashboard",
+        dept: "dashboard",
+        branch_admin: "members",
+        member: "profile",
+      };
+
+      const SENSITIVE_MEMBER_FIELDS = new Set([
+        "name",
+        "politicalStatus",
+        "joinDate",
+        "regularDate",
+        "branchId",
+        "status",
+      ]);
+
+      const DEFAULT_DATA = {
+        branches: [
+          {
+            id: "b1",
+            name: "第一党支部",
+            code: "DZ-001",
+            description: "覆盖运营与客服条线。",
+            establishDate: "2014-05-01",
+            secretaryName: "王立新",
+            contactPhone: "021-60000001",
+            status: "active",
+          },
+          {
+            id: "b2",
+            name: "第二党支部",
+            code: "DZ-002",
+            description: "覆盖人力与综合管理条线。",
+            establishDate: "2015-03-01",
+            secretaryName: "李海燕",
+            contactPhone: "021-60000002",
+            status: "active",
+          },
+          {
+            id: "b3",
+            name: "机关党支部",
+            code: "DZ-003",
+            description: "覆盖风控与纪检支持条线。",
+            establishDate: "2016-11-01",
+            secretaryName: "刘文博",
+            contactPhone: "021-60000003",
+            status: "active",
+          },
+        ],
+        members: [
+          {
+            id: "m1",
+            name: "张晓峰",
+            gender: "男",
+            branchId: "b2",
+            department: "党委办公室",
+            position: "党委书记",
+            phone: "13800000001",
+            email: "zhangxiaofeng@example.com",
+            birthday: "1984-06-12",
+            politicalStatus: "中共党员",
+            joinDate: "2008-07-01",
+            regularDate: "2009-07-01",
+            status: "active",
+            remarks: "党委领导账号绑定人员。",
+          },
+          {
+            id: "m2",
+            name: "李海燕",
+            gender: "女",
+            branchId: "b2",
+            department: "党建纪检部",
+            position: "部门负责人",
+            phone: "13800000002",
+            email: "lihaiyan@example.com",
+            birthday: "1988-02-22",
+            politicalStatus: "中共党员",
+            joinDate: "2011-07-01",
+            regularDate: "2012-07-01",
+            status: "active",
+            remarks: "全局人员管理维护角色。",
+          },
+          {
+            id: "m3",
+            name: "王立新",
+            gender: "男",
+            branchId: "b1",
+            department: "运营管理部",
+            position: "支部书记",
+            phone: "13800000003",
+            email: "wanglixin@example.com",
+            birthday: "1987-11-20",
+            politicalStatus: "中共党员",
+            joinDate: "2010-07-01",
+            regularDate: "2011-07-01",
+            status: "active",
+            remarks: "第一党支部负责人。",
+          },
+          {
+            id: "m4",
+            name: "陈嘉宁",
+            gender: "女",
+            branchId: "b1",
+            department: "客服中心",
+            position: "普通党员",
+            phone: "13800000004",
+            email: "chenjianing@example.com",
+            birthday: "1997-03-10",
+            politicalStatus: "中共预备党员",
+            joinDate: "2025-07-01",
+            regularDate: "2026-07-01",
+            status: "probationary",
+            remarks: "普通党员账号绑定人员。",
+          },
+          {
+            id: "m5",
+            name: "刘文博",
+            gender: "男",
+            branchId: "b3",
+            department: "风控合规部",
+            position: "纪检委员",
+            phone: "13800000005",
+            email: "liuwenbo@example.com",
+            birthday: "1991-05-14",
+            politicalStatus: "中共党员",
+            joinDate: "2014-07-01",
+            regularDate: "2015-07-01",
+            status: "active",
+            remarks: "机关党支部纪检联络。",
+          },
+          {
+            id: "m6",
+            name: "赵一凡",
+            gender: "男",
+            branchId: "b1",
+            department: "客服中心",
+            position: "青年骨干",
+            phone: "13800000006",
+            email: "zhaoyifan@example.com",
+            birthday: "1998-09-18",
+            politicalStatus: "入党积极分子",
+            joinDate: "",
+            regularDate: "",
+            status: "active",
+            remarks: "本支部重点培养对象。",
+          },
+        ],
+        accounts: [
+          {
+            id: "a1",
+            username: "leader01",
+            password: "123456",
+            role: "leader",
+            memberId: "m1",
+            status: "active",
+            mustChangePassword: false,
+          },
+          {
+            id: "a2",
+            username: "dept01",
+            password: "123456",
+            role: "dept",
+            memberId: "m2",
+            status: "active",
+            mustChangePassword: false,
+          },
+          {
+            id: "a3",
+            username: "branch01",
+            password: "123456",
+            role: "branch_admin",
+            memberId: "m3",
+            status: "active",
+            mustChangePassword: false,
+          },
+          {
+            id: "a4",
+            username: "member01",
+            password: "123456",
+            role: "member",
+            memberId: "m4",
+            status: "active",
+            mustChangePassword: false,
+          },
+          {
+            id: "a5",
+            username: "audit01",
+            password: "123456",
+            role: "branch_admin",
+            memberId: "m5",
+            status: "disabled",
+            mustChangePassword: false,
+          },
+        ],
+        requests: [
+          {
+            id: "r1",
+            type: "member_change",
+            targetMemberId: "m4",
+            actorAccountId: "a3",
+            actorRole: "branch_admin",
+            actorName: "王立新",
+            branchId: "b1",
+            changedFields: ["regularDate", "politicalStatus"],
+            severity: "critical",
+            stage: "leader",
+            status: "pending_leader",
+            createdAt: "2026-04-14 10:00",
+            reason: "提交转正审批材料，需修改转正日期与政治身份。",
+            beforeSnapshot: {
+              regularDate: "2026-07-01",
+              politicalStatus: "中共预备党员",
+            },
+            afterSnapshot: {
+              regularDate: "2026-05-01",
+              politicalStatus: "中共党员",
+            },
+            reviewComment: "党建纪检部已复核，提交党委领导审批。",
+          },
+          {
+            id: "r2",
+            type: "member_change",
+            targetMemberId: "m4",
+            actorAccountId: "a4",
+            actorRole: "member",
+            actorName: "陈嘉宁",
+            branchId: "b1",
+            changedFields: ["phone", "email"],
+            severity: "normal",
+            stage: "dept",
+            status: "pending_dept",
+            createdAt: "2026-04-14 09:20",
+            reason: "本人联系方式变更。",
+            beforeSnapshot: {
+              phone: "13800000004",
+              email: "chenjianing@example.com",
+            },
+            afterSnapshot: {
+              phone: "13800009999",
+              email: "chenjianing_new@example.com",
+            },
+            reviewComment: "",
+          },
+        ],
+      };
+
+      function clone(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function safeParse(value, fallback) {
+        try {
+          return JSON.parse(value);
+        } catch (error) {
+          return fallback;
+        }
+      }
+
+      function createStorage() {
+        try {
+          const probeKey = "__party_local_probe__";
+          localStorage.setItem(probeKey, "1");
+          localStorage.removeItem(probeKey);
+          return localStorage;
+        } catch (error) {
+          return {
+            _map: new Map(),
+            getItem(key) {
+              return this._map.has(key) ? this._map.get(key) : null;
+            },
+            setItem(key, value) {
+              this._map.set(key, value);
+            },
+            removeItem(key) {
+              this._map.delete(key);
+            },
+          };
+        }
+      }
+
+      const storage = createStorage();
+      const DATA_KEY = "party-personnel-rbac-v1";
+      const SESSION_KEY = "party-personnel-session-v1";
+
+      const ui = {
+        activePage: "dashboard",
+        filters: {
+          memberKeyword: "",
+          memberStatus: "",
+          branchKeyword: "",
+          requestKeyword: "",
+          requestStatus: "",
+          accountKeyword: "",
+          directoryKeyword: "",
+        },
+        modal: {
+          type: null,
+          id: null,
+        },
+      };
+
+      let state = loadState();
+      let session = loadSession();
+
+      function loadState() {
+        const saved = storage.getItem(DATA_KEY);
+        if (!saved) return clone(DEFAULT_DATA);
+        const parsed = safeParse(saved, clone(DEFAULT_DATA));
+        return {
+          branches: Array.isArray(parsed.branches) ? parsed.branches : clone(DEFAULT_DATA.branches),
+          members: Array.isArray(parsed.members) ? parsed.members : clone(DEFAULT_DATA.members),
+          accounts: Array.isArray(parsed.accounts) ? parsed.accounts : clone(DEFAULT_DATA.accounts),
+          requests: Array.isArray(parsed.requests) ? parsed.requests : clone(DEFAULT_DATA.requests),
+        };
+      }
+
+      function loadSession() {
+        const saved = storage.getItem(SESSION_KEY);
+        return saved ? safeParse(saved, null) : null;
+      }
+
+      function saveState() {
+        storage.setItem(DATA_KEY, JSON.stringify(state));
+      }
+
+      function saveSession() {
+        if (session) {
+          storage.setItem(SESSION_KEY, JSON.stringify(session));
+        } else {
+          storage.removeItem(SESSION_KEY);
+        }
+      }
+
+      function currentAccount() {
+        if (!session || !session.accountId) return null;
+        return state.accounts.find((item) => item.id === session.accountId) || null;
+      }
+
+      function currentRole() {
+        const account = currentAccount();
+        return account ? account.role : null;
+      }
+
+      function currentMember() {
+        const account = currentAccount();
+        if (!account) return null;
+        return state.members.find((item) => item.id === account.memberId) || null;
+      }
+
+      function currentBranch() {
+        const member = currentMember();
+        if (!member || !member.branchId) return null;
+        return state.branches.find((item) => item.id === member.branchId) || null;
+      }
+
+      function branchById(branchId) {
+        return state.branches.find((item) => item.id === branchId) || null;
+      }
+
+      function memberById(memberId) {
+        return state.members.find((item) => item.id === memberId) || null;
+      }
+
+      function accountById(accountId) {
+        return state.accounts.find((item) => item.id === accountId) || null;
+      }
+
+      function roleLabel(role) {
+        return ROLE_LABELS[role] || role;
+      }
+
+      function statusTag(status) {
+        const map = {
+          active: ["正常", "success"],
+          probationary: ["预备党员", "warning"],
+          transferred_out: ["转出", "warning"],
+          suspended: ["停止党籍", "danger"],
+          disabled: ["已停用", "danger"],
+          pending_dept: ["待党建纪检部审批", "warning"],
+          pending_leader: ["待党委领导审批", "primary"],
+          approved: ["已通过", "success"],
+          rejected: ["已退回", "danger"],
+          active_account: ["启用", "success"],
+        };
+        return map[status] || [status || "-", "primary"];
+      }
+
+      function requestSeverityTag(level) {
+        const map = {
+          normal: ["普通变更", "primary"],
+          critical: ["关键变更", "danger"],
+        };
+        return map[level] || [level || "-", "primary"];
+      }
+
+      function branchName(branchId) {
+        const branch = branchById(branchId);
+        return branch ? branch.name : "-";
+      }
+
+      function formatDate(dateString) {
+        if (!dateString) return "-";
+        const parsed = new Date(dateString);
+        if (Number.isNaN(parsed.getTime())) return dateString;
+        return parsed.toLocaleDateString("zh-CN");
+      }
+
+      function nowLabel() {
+        return new Date().toLocaleDateString("zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function showToast(message, type = "") {
+        const toast = document.getElementById("toast");
+        toast.className = `toast ${type}`.trim();
+        toast.textContent = message;
+        toast.classList.remove("hidden");
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => {
+          toast.className = "toast hidden";
+        }, 2600);
+      }
+
+      function uid(prefix) {
+        return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      }
+
+      function memberScopeForRole(role) {
+        const member = currentMember();
+        if (!member) return [];
+        if (role === "leader" || role === "dept") return state.members;
+        if (role === "branch_admin") return state.members.filter((item) => item.branchId === member.branchId);
+        return state.members.filter((item) => item.id === member.id);
+      }
+
+      function branchScopeForRole(role) {
+        const branch = currentBranch();
+        if (role === "leader" || role === "dept") return state.branches;
+        if (role === "branch_admin" && branch) return [branch];
+        if (role === "member" && branch) return [branch];
+        return [];
+      }
+
+      function requestScopeForRole(role) {
+        const account = currentAccount();
+        const member = currentMember();
+        if (!account || !member) return [];
+        if (role === "leader") {
+          return state.requests.filter((item) => item.stage === "leader" || item.status === "approved" || item.status === "rejected");
+        }
+        if (role === "dept") {
+          return state.requests;
+        }
+        if (role === "branch_admin") {
+          return state.requests.filter((item) => item.branchId === member.branchId || item.actorAccountId === account.id);
+        }
+        return state.requests.filter((item) => item.actorAccountId === account.id || item.targetMemberId === member.id);
+      }
+
+      function canAccess(page) {
+        const role = currentRole();
+        return role ? PAGES_BY_ROLE[role].includes(page) : false;
+      }
+
+      function setActivePage(page) {
+        const role = currentRole();
+        if (!role) return;
+        ui.activePage = canAccess(page) ? page : DEFAULT_PAGE_BY_ROLE[role];
+        renderApp();
+      }
+
+      function resetUiFilters() {
+        ui.filters = {
+          memberKeyword: "",
+          memberStatus: "",
+          branchKeyword: "",
+          requestKeyword: "",
+          requestStatus: "",
+          accountKeyword: "",
+          directoryKeyword: "",
+        };
+      }
+
+      function login(username, password) {
+        const account = state.accounts.find((item) => item.username === username.trim());
+        if (!account) {
+          showToast("账号不存在", "danger");
+          return;
+        }
+        if (account.status !== "active") {
+          showToast("账号已停用，无法登录", "danger");
+          return;
+        }
+        if (account.password !== password) {
+          showToast("密码错误", "danger");
+          return;
+        }
+        session = { accountId: account.id };
+        saveSession();
+        resetUiFilters();
+        ui.activePage = DEFAULT_PAGE_BY_ROLE[account.role];
+        renderApp();
+        if (account.mustChangePassword) {
+          openModal("change_password", account.id);
+        } else {
+          showToast(`欢迎进入${roleLabel(account.role)}空间`, "success");
+        }
+      }
+
+      function logout() {
+        session = null;
+        saveSession();
+        closeModal();
+        document.getElementById("login-form").reset();
+        renderApp();
+      }
+
+      function renderLogin() {
+        document.getElementById("login-screen").classList.remove("hidden");
+        document.getElementById("app-screen").classList.add("hidden");
+        document.getElementById("today-label").textContent = nowLabel();
+      }
+
+      function renderNav() {
+        const role = currentRole();
+        const nav = document.getElementById("nav-list");
+        nav.innerHTML = PAGES_BY_ROLE[role].map((page) => `
+          <button class="nav-btn ${ui.activePage === page ? "active" : ""}" data-page="${page}">
+            <span>${PAGE_META[page].title}</span>
+            <span>›</span>
+          </button>
+        `).join("");
+      }
+
+      function renderTopbar() {
+        const account = currentAccount();
+        const member = currentMember();
+        document.getElementById("page-title").textContent = PAGE_META[ui.activePage].title;
+        document.getElementById("page-desc").textContent = PAGE_META[ui.activePage].desc;
+        document.getElementById("current-user-name").textContent = member ? member.name : account.username;
+        document.getElementById("current-role-name").textContent = roleLabel(account.role);
+        document.getElementById("today-label").textContent = nowLabel();
+        document.getElementById("sidebar-role-label").textContent = `${roleLabel(account.role)} · 数据范围自动控制`;
+      }
+
+      function renderDashboard() {
+        const role = currentRole();
+        const scopedMembers = memberScopeForRole(role);
+        const scopedBranches = branchScopeForRole(role);
+        const scopedRequests = requestScopeForRole(role);
+        const activeMembers = scopedMembers.filter((item) => item.status === "active").length;
+        const probationaryMembers = scopedMembers.filter((item) => item.status === "probationary").length;
+        const pendingRequests = scopedRequests.filter((item) => item.status === "pending_dept" || item.status === "pending_leader").length;
+
+        const actionButtons = [];
+        if (role === "dept") actionButtons.push(`<button class="toolbar-btn" data-open-modal="member_create">新增党员</button>`);
+        if (role === "dept") actionButtons.push(`<button class="toolbar-btn" data-open-modal="branch_create">新建支部</button>`);
+        if (role === "branch_admin") actionButtons.push(`<button class="toolbar-btn" data-open-modal="member_create">新增本支部党员</button>`);
+        if (role === "member") actionButtons.push(`<button class="toolbar-btn" data-go-page="profile">维护我的信息</button>`);
+
+        const summaryRight = role === "leader"
+          ? `
+            <div class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>领导视角提醒</h3>
+                  <p>聚焦全局结构与关键审批</p>
+                </div>
+                <span class="tag danger">${pendingRequests} 条待批</span>
+              </div>
+              <div class="request-list">
+                ${renderRequestPreview(scopedRequests.filter((item) => item.stage === "leader").slice(0, 3))}
+              </div>
+            </div>
+          `
+          : role === "dept"
+            ? `
+              <div class="panel">
+                <div class="section-title">
+                  <div>
+                    <h3>党建纪检部待办</h3>
+                    <p>当前待处理的人员变更和账号事务</p>
+                  </div>
+                  <span class="tag warning">${pendingRequests} 条待处理</span>
+                </div>
+                <div class="request-list">
+                  ${renderRequestPreview(scopedRequests.filter((item) => item.stage === "dept").slice(0, 4))}
+                </div>
+              </div>
+            `
+            : role === "branch_admin"
+              ? `
+                <div class="panel">
+                  <div class="section-title">
+                    <div>
+                      <h3>本支部重点关注</h3>
+                      <p>只展示本支部相关人员和申请</p>
+                    </div>
+                    <span class="tag primary">${branchName(currentMember().branchId)}</span>
+                  </div>
+                  <div class="request-list">
+                    ${renderMemberPreview(scopedMembers.slice(0, 4))}
+                  </div>
+                </div>
+              `
+              : `
+                <div class="panel">
+                  <div class="section-title">
+                    <div>
+                      <h3>我的账号摘要</h3>
+                      <p>个人档案与本支部入口</p>
+                    </div>
+                    <span class="tag success">个人空间</span>
+                  </div>
+                  <div class="request-list">
+                    ${renderSimpleProfilePreview()}
+                  </div>
+                </div>
+              `;
+
+        return `
+          <section class="metric-grid">
+            <article class="metric-card">
+              <h4>${role === "member" ? "我的支部人数" : "可见党员数"}</h4>
+              <strong class="metric-number">${role === "member" ? state.members.filter((item) => item.branchId === currentMember().branchId).length : scopedMembers.length}</strong>
+              <p>${role === "member" ? "仅统计本支部公开成员" : "根据角色权限自动控制范围"}</p>
+            </article>
+            <article class="metric-card">
+              <h4>${role === "member" ? "我的信息待完善项" : "正常党员数"}</h4>
+              <strong class="metric-number">${role === "member" ? countIncompleteFields(currentMember()) : activeMembers}</strong>
+              <p>${role === "member" ? "系统提示建议补全信息" : "状态为正常的党员人数"}</p>
+            </article>
+            <article class="metric-card">
+              <h4>${role === "member" ? "我的申请记录" : "预备党员数"}</h4>
+              <strong class="metric-number">${role === "member" ? scopedRequests.length : probationaryMembers}</strong>
+              <p>${role === "member" ? "可查看本人提交的变更记录" : "可用于转正提醒"}</p>
+            </article>
+            <article class="metric-card">
+              <h4>${role === "member" ? "待处理结果" : "待处理申请"}</h4>
+              <strong class="metric-number">${pendingRequests}</strong>
+              <p>${role === "member" ? "查看审核状态和退回意见" : "待审批或待复核的请求数"}</p>
+            </article>
+          </section>
+
+          <section class="panel" style="margin-bottom: 18px;">
+            <div class="section-title">
+              <div>
+                <h3>${roleLabel(role)}首页</h3>
+                <p>${renderRoleHomeDescription(role)}</p>
+              </div>
+              <div class="page-actions">${actionButtons.join("")}</div>
+            </div>
+            <div class="content-grid">
+              <div class="panel">
+                <div class="section-title">
+                  <div>
+                    <h3>${role === "member" ? "本支部公开通讯录" : "人员结构概览"}</h3>
+                    <p>${role === "member" ? "查看本支部成员的公开信息" : "快速查看当前权限范围内的人员结构"}</p>
+                  </div>
+                </div>
+                ${role === "member" ? renderDirectoryCards(state.members.filter((item) => item.branchId === currentMember().branchId).slice(0, 4)) : renderDashboardBranchCards(scopedBranches, scopedMembers)}
+              </div>
+              ${summaryRight}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderRoleHomeDescription(role) {
+        if (role === "leader") return "默认进入首页，查看全局党员结构、支部分布和关键审批。";
+        if (role === "dept") return "默认进入首页，查看待办、快捷入口和全量人员维护工作台。";
+        if (role === "branch_admin") return "默认重点进入本支部人员管理，可新增、维护和提交敏感字段审批。";
+        return "默认重点进入个人中心，可维护个人信息并查看本支部通讯录。";
+      }
+
+      function renderDashboardBranchCards(branches, members) {
+        if (!branches.length) {
+          return `<div class="empty-state"><h3>暂无支部数据</h3><p>当前权限范围内没有可见支部。</p></div>`;
+        }
+        return `
+          <div class="card-grid">
+            ${branches.map((branch) => `
+              <article class="card-item">
+                <h4>${escapeHtml(branch.name)}</h4>
+                <p>${escapeHtml(branch.description || "暂无描述")}</p>
+                <div class="meta-grid">
+                  <div class="meta-box">
+                    <span class="label">党员数量</span>
+                    <strong>${members.filter((item) => item.branchId === branch.id).length}</strong>
+                  </div>
+                  <div class="meta-box">
+                    <span class="label">支部书记</span>
+                    <strong>${escapeHtml(branch.secretaryName || "-")}</strong>
+                  </div>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderMemberPreview(items) {
+        if (!items.length) {
+          return `<div class="empty-state"><h3>暂无本支部成员</h3><p>当前没有可显示的成员记录。</p></div>`;
+        }
+        return items.map((item) => `
+          <article class="request-item">
+            <h4>${escapeHtml(item.name)}</h4>
+            <p>${escapeHtml(item.department)} / ${escapeHtml(item.position || "-")}</p>
+            <p>${escapeHtml(item.phone || "-")} · ${escapeHtml(item.email || "-")}</p>
+          </article>
+        `).join("");
+      }
+
+      function renderSimpleProfilePreview() {
+        const member = currentMember();
+        return `
+          <article class="request-item">
+            <h4>${escapeHtml(member.name)}</h4>
+            <p>${escapeHtml(branchName(member.branchId))} · ${escapeHtml(member.position || "-")}</p>
+            <p>联系电话：${escapeHtml(member.phone || "-")}</p>
+          </article>
+          <article class="request-item">
+            <h4>快捷操作</h4>
+            <p>进入“个人中心”可修改联系方式、密码并提交敏感字段更正申请。</p>
+          </article>
+        `;
+      }
+
+      function renderRequestPreview(items) {
+        if (!items.length) {
+          return `<div class="empty-state"><h3>暂无待办申请</h3><p>当前没有需要处理的审批事项。</p></div>`;
+        }
+        return items.map((item) => {
+          const target = memberById(item.targetMemberId);
+          const status = statusTag(item.status);
+          return `
+            <article class="request-item">
+              <h4>${escapeHtml(target ? target.name : "未知人员")} · ${escapeHtml(item.changedFields.join("、"))}</h4>
+              <p>${escapeHtml(item.actorName)} 提交 · ${escapeHtml(item.createdAt)}</p>
+              <p>${escapeHtml(item.reason || "无说明")}</p>
+              <div class="page-actions" style="margin-top: 10px;">
+                <span class="tag ${status[1]}">${status[0]}</span>
+                <span class="tag ${requestSeverityTag(item.severity)[1]}">${requestSeverityTag(item.severity)[0]}</span>
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      function countIncompleteFields(member) {
+        let count = 0;
+        if (!member.phone) count += 1;
+        if (!member.email) count += 1;
+        if (!member.birthday) count += 1;
+        if (!member.remarks) count += 1;
+        return count;
+      }
+
+      function renderMembersPage() {
+        const role = currentRole();
+        const keyword = ui.filters.memberKeyword.trim().toLowerCase();
+        const statusFilter = ui.filters.memberStatus;
+        const scopedMembers = memberScopeForRole(role).filter((item) => {
+          const haystack = [item.name, branchName(item.branchId), item.department, item.position].join(" ").toLowerCase();
+          const matchKeyword = !keyword || haystack.includes(keyword);
+          const matchStatus = !statusFilter || item.status === statusFilter;
+          return matchKeyword && matchStatus;
+        });
+
+        const canCreate = role === "dept" || role === "branch_admin";
+
+        return `
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <input id="filter-member-keyword" value="${escapeHtml(ui.filters.memberKeyword)}" placeholder="搜索姓名、支部、部门" />
+              <select id="filter-member-status">
+                <option value="">全部状态</option>
+                <option value="active" ${ui.filters.memberStatus === "active" ? "selected" : ""}>正常</option>
+                <option value="probationary" ${ui.filters.memberStatus === "probationary" ? "selected" : ""}>预备党员</option>
+                <option value="transferred_out" ${ui.filters.memberStatus === "transferred_out" ? "selected" : ""}>转出</option>
+                <option value="suspended" ${ui.filters.memberStatus === "suspended" ? "selected" : ""}>停止党籍</option>
+              </select>
+            </div>
+            <div class="toolbar-right">
+              ${canCreate ? `<button class="primary-btn" data-open-modal="member_create">新增党员</button>` : ""}
+            </div>
+          </div>
+
+          <section class="table-panel">
+            <div class="section-title">
+              <div>
+                <h3>${role === "branch_admin" ? "本支部党员列表" : "党员列表"}</h3>
+                <p>${role === "leader" ? "只读查看全量党员信息" : role === "dept" ? "可新增、编辑、删除、导出党员档案" : "仅限本支部范围维护"}</p>
+              </div>
+              <span class="tag primary">共 ${scopedMembers.length} 人</span>
+            </div>
+            ${renderMembersTable(scopedMembers, role)}
+          </section>
+        `;
+      }
+
+      function renderMembersTable(items, role) {
+        if (!items.length) {
+          return `<div class="empty-state"><h3>暂无党员数据</h3><p>当前筛选条件下没有结果。</p></div>`;
+        }
+        return `
+          <table>
+            <thead>
+              <tr>
+                <th>姓名</th>
+                <th>所属支部</th>
+                <th>部门 / 职务</th>
+                <th>联系方式</th>
+                <th>党籍状态</th>
+                <th>入党日期</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((item) => {
+                const tag = statusTag(item.status);
+                return `
+                  <tr>
+                    <td><strong>${escapeHtml(item.name)}</strong><br /><span class="label">${escapeHtml(item.gender || "-")}</span></td>
+                    <td>${escapeHtml(branchName(item.branchId))}</td>
+                    <td>${escapeHtml(item.department || "-")} / ${escapeHtml(item.position || "-")}</td>
+                    <td>${escapeHtml(item.phone || "-")}<br />${escapeHtml(item.email || "-")}</td>
+                    <td><span class="tag ${tag[1]}">${tag[0]}</span></td>
+                    <td>${formatDate(item.joinDate)}</td>
+                    <td>
+                      <div class="action-group">
+                        <button class="mini-btn" data-open-modal="member_view" data-id="${item.id}">查看</button>
+                        ${role === "dept" || role === "branch_admin" ? `<button class="mini-btn" data-open-modal="member_edit" data-id="${item.id}">编辑</button>` : ""}
+                        ${role === "dept" ? `<button class="mini-btn" data-delete-member="${item.id}">删除</button>` : ""}
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function renderBranchesPage() {
+        const role = currentRole();
+        const keyword = ui.filters.branchKeyword.trim().toLowerCase();
+        const items = branchScopeForRole(role).filter((item) => {
+          const haystack = [item.name, item.code, item.secretaryName].join(" ").toLowerCase();
+          return !keyword || haystack.includes(keyword);
+        });
+
+        return `
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <input id="filter-branch-keyword" value="${escapeHtml(ui.filters.branchKeyword)}" placeholder="搜索支部名称、代码、书记" />
+            </div>
+            <div class="toolbar-right">
+              ${role === "dept" ? `<button class="primary-btn" data-open-modal="branch_create">新建支部</button>` : ""}
+            </div>
+          </div>
+          ${renderBranchCards(items, role)}
+        `;
+      }
+
+      function renderBranchCards(items, role) {
+        if (!items.length) {
+          return `<div class="empty-state"><h3>暂无支部数据</h3><p>当前角色下没有可显示的支部。</p></div>`;
+        }
+        return `
+          <div class="card-grid">
+            ${items.map((item) => {
+              const tag = statusTag(item.status);
+              const memberCount = state.members.filter((member) => member.branchId === item.id).length;
+              return `
+                <article class="card-item">
+                  <div class="section-title">
+                    <div>
+                      <h4>${escapeHtml(item.name)}</h4>
+                      <p>代码：${escapeHtml(item.code || "-")}</p>
+                    </div>
+                    <span class="tag ${tag[1]}">${tag[0]}</span>
+                  </div>
+                  <p>${escapeHtml(item.description || "暂无描述")}</p>
+                  <div class="meta-grid">
+                    <div class="meta-box">
+                      <span class="label">党员数</span>
+                      <strong>${memberCount}</strong>
+                    </div>
+                    <div class="meta-box">
+                      <span class="label">支部书记</span>
+                      <strong>${escapeHtml(item.secretaryName || "-")}</strong>
+                    </div>
+                  </div>
+                  <div class="page-actions" style="margin-top: 14px;">
+                    <button class="mini-btn" data-open-modal="branch_view" data-id="${item.id}">查看</button>
+                    ${role === "dept" ? `<button class="mini-btn" data-open-modal="branch_edit" data-id="${item.id}">编辑</button>` : ""}
+                  </div>
+                </article>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function renderMyBranchPage() {
+        const branch = currentBranch();
+        if (!branch) {
+          return `<div class="empty-state"><h3>未绑定支部</h3><p>当前账号未绑定支部信息。</p></div>`;
+        }
+        const members = state.members.filter((item) => item.branchId === branch.id);
+        return `
+          <section class="panel" style="margin-bottom: 18px;">
+            <div class="section-title">
+              <div>
+                <h3>${escapeHtml(branch.name)}</h3>
+                <p>本支部信息维护页，仅对支部书记/委员开放</p>
+              </div>
+              <div class="page-actions">
+                <button class="toolbar-btn" data-open-modal="branch_edit_lite" data-id="${branch.id}">编辑支部信息</button>
+                <button class="toolbar-btn" data-go-page="members">进入本支部党员管理</button>
+              </div>
+            </div>
+            <div class="meta-grid">
+              <div class="meta-box"><span class="label">支部代码</span><strong>${escapeHtml(branch.code)}</strong></div>
+              <div class="meta-box"><span class="label">支部书记</span><strong>${escapeHtml(branch.secretaryName || "-")}</strong></div>
+              <div class="meta-box"><span class="label">成立日期</span><strong>${formatDate(branch.establishDate)}</strong></div>
+              <div class="meta-box"><span class="label">成员数量</span><strong>${members.length}</strong></div>
+            </div>
+            <p style="margin-top: 14px; color: var(--muted);">${escapeHtml(branch.description || "暂无描述")}</p>
+          </section>
+          <section class="table-panel">
+            <div class="section-title">
+              <div>
+                <h3>支部成员名单</h3>
+                <p>仅显示本支部成员</p>
+              </div>
+            </div>
+            ${renderMembersTable(members, "branch_admin")}
+          </section>
+        `;
+      }
+
+      function renderApprovalsPage() {
+        const role = currentRole();
+        const keyword = ui.filters.requestKeyword.trim().toLowerCase();
+        const statusFilter = ui.filters.requestStatus;
+        const items = requestScopeForRole(role).filter((item) => {
+          const target = memberById(item.targetMemberId);
+          const haystack = [
+            item.actorName,
+            target ? target.name : "",
+            item.changedFields.join(" "),
+            item.reason,
+          ].join(" ").toLowerCase();
+          const matchKeyword = !keyword || haystack.includes(keyword);
+          const matchStatus = !statusFilter || item.status === statusFilter;
+          return matchKeyword && matchStatus;
+        }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+
+        return `
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <input id="filter-request-keyword" value="${escapeHtml(ui.filters.requestKeyword)}" placeholder="搜索申请人、目标党员、变更字段" />
+              <select id="filter-request-status">
+                <option value="">全部状态</option>
+                <option value="pending_dept" ${ui.filters.requestStatus === "pending_dept" ? "selected" : ""}>待党建纪检部审批</option>
+                <option value="pending_leader" ${ui.filters.requestStatus === "pending_leader" ? "selected" : ""}>待党委领导审批</option>
+                <option value="approved" ${ui.filters.requestStatus === "approved" ? "selected" : ""}>已通过</option>
+                <option value="rejected" ${ui.filters.requestStatus === "rejected" ? "selected" : ""}>已退回</option>
+              </select>
+            </div>
+          </div>
+          ${renderApprovalCards(items, role)}
+        `;
+      }
+
+      function renderApprovalCards(items, role) {
+        if (!items.length) {
+          return `<div class="empty-state"><h3>暂无审批记录</h3><p>当前筛选条件下没有相关申请。</p></div>`;
+        }
+        return `
+          <div class="request-list">
+            ${items.map((item) => {
+              const member = memberById(item.targetMemberId);
+              const status = statusTag(item.status);
+              const severity = requestSeverityTag(item.severity);
+              const canDeptApprove = role === "dept" && item.stage === "dept" && item.status === "pending_dept";
+              const canLeaderApprove = role === "leader" && item.stage === "leader" && item.status === "pending_leader";
+              const canForward = role === "dept" && item.stage === "dept" && item.status === "pending_dept" && item.severity === "critical";
+
+              return `
+                <article class="request-item">
+                  <div class="section-title">
+                    <div>
+                      <h4>${escapeHtml(member ? member.name : "未知人员")} · ${escapeHtml(item.changedFields.join("、"))}</h4>
+                      <p>${escapeHtml(item.actorName)} 提交 · ${escapeHtml(item.createdAt)}</p>
+                    </div>
+                    <div class="page-actions">
+                      <span class="tag ${status[1]}">${status[0]}</span>
+                      <span class="tag ${severity[1]}">${severity[0]}</span>
+                    </div>
+                  </div>
+                  <p>变更原因：${escapeHtml(item.reason || "无")}</p>
+                  <p style="margin-top: 8px;">变更前：${escapeHtml(formatChangeSnapshot(item.beforeSnapshot))}</p>
+                  <p style="margin-top: 8px;">变更后：${escapeHtml(formatChangeSnapshot(item.afterSnapshot))}</p>
+                  ${item.reviewComment ? `<p style="margin-top: 8px;">处理意见：${escapeHtml(item.reviewComment)}</p>` : ""}
+                  <div class="page-actions" style="margin-top: 14px;">
+                    <button class="mini-btn" data-open-modal="request_view" data-id="${item.id}">查看详情</button>
+                    ${canDeptApprove ? `<button class="mini-btn" data-request-action="approve" data-id="${item.id}">直接通过</button>` : ""}
+                    ${canForward ? `<button class="mini-btn" data-request-action="forward" data-id="${item.id}">提交领导审批</button>` : ""}
+                    ${(canDeptApprove || canLeaderApprove) ? `<button class="mini-btn" data-request-action="reject" data-id="${item.id}">退回</button>` : ""}
+                    ${canLeaderApprove ? `<button class="mini-btn" data-request-action="approve" data-id="${item.id}">领导通过</button>` : ""}
+                  </div>
+                </article>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function formatChangeSnapshot(snapshot) {
+        return Object.entries(snapshot || {}).map(([key, value]) => `${fieldLabel(key)}: ${value || "-"}`).join("；");
+      }
+
+      function fieldLabel(field) {
+        const map = {
+          name: "姓名",
+          politicalStatus: "政治身份",
+          joinDate: "入党日期",
+          regularDate: "转正日期",
+          branchId: "所属支部",
+          status: "党员状态",
+          phone: "手机号",
+          email: "邮箱",
+          department: "部门",
+          position: "职务",
+          birthday: "出生日期",
+          remarks: "备注",
+        };
+        return map[field] || field;
+      }
+
+      function renderAccountsPage() {
+        const keyword = ui.filters.accountKeyword.trim().toLowerCase();
+        const rows = state.accounts.filter((item) => {
+          const member = memberById(item.memberId);
+          const haystack = [item.username, roleLabel(item.role), member ? member.name : ""].join(" ").toLowerCase();
+          return !keyword || haystack.includes(keyword);
+        });
+
+        return `
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <input id="filter-account-keyword" value="${escapeHtml(ui.filters.accountKeyword)}" placeholder="搜索账号、角色、绑定人员" />
+            </div>
+            <div class="toolbar-right">
+              <button class="primary-btn" data-open-modal="account_create">新增账号</button>
+            </div>
+          </div>
+          <section class="table-panel">
+            <div class="section-title">
+              <div>
+                <h3>账号与权限列表</h3>
+                <p>仅党建纪检部可维护账号、角色和密码重置</p>
+              </div>
+              <span class="tag primary">共 ${rows.length} 个账号</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>账号</th>
+                  <th>绑定人员</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th>首次登录改密</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map((item) => {
+                  const member = memberById(item.memberId);
+                  return `
+                    <tr>
+                      <td><strong>${escapeHtml(item.username)}</strong></td>
+                      <td>${escapeHtml(member ? member.name : "-")}</td>
+                      <td>${escapeHtml(roleLabel(item.role))}</td>
+                      <td><span class="tag ${item.status === "active" ? "success" : "danger"}">${item.status === "active" ? "启用" : "停用"}</span></td>
+                      <td>${item.mustChangePassword ? "是" : "否"}</td>
+                      <td>
+                        <div class="action-group">
+                          <button class="mini-btn" data-open-modal="account_edit" data-id="${item.id}">编辑</button>
+                          <button class="mini-btn" data-reset-password="${item.id}">重置密码</button>
+                          <button class="mini-btn" data-toggle-account="${item.id}">${item.status === "active" ? "停用" : "启用"}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </section>
+        `;
+      }
+
+      function renderBranchDirectoryPage() {
+        const member = currentMember();
+        const keyword = ui.filters.directoryKeyword.trim().toLowerCase();
+        const rows = state.members.filter((item) => {
+          if (item.branchId !== member.branchId) return false;
+          const haystack = [item.name, item.department, item.position].join(" ").toLowerCase();
+          return !keyword || haystack.includes(keyword);
+        });
+
+        return `
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <input id="filter-directory-keyword" value="${escapeHtml(ui.filters.directoryKeyword)}" placeholder="搜索本支部成员" />
+            </div>
+          </div>
+          <section class="table-panel">
+            <div class="section-title">
+              <div>
+                <h3>${escapeHtml(branchName(member.branchId))}通讯录</h3>
+                <p>仅展示本支部公开信息</p>
+              </div>
+              <span class="tag primary">共 ${rows.length} 人</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>姓名</th>
+                  <th>部门 / 职务</th>
+                  <th>联系方式</th>
+                  <th>党员状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map((item) => {
+                  const tag = statusTag(item.status);
+                  return `
+                    <tr>
+                      <td><strong>${escapeHtml(item.name)}</strong></td>
+                      <td>${escapeHtml(item.department || "-")} / ${escapeHtml(item.position || "-")}</td>
+                      <td>${escapeHtml(item.phone || "-")}<br />${escapeHtml(item.email || "-")}</td>
+                      <td><span class="tag ${tag[1]}">${tag[0]}</span></td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </section>
+        `;
+      }
+
+      function renderProfilePage() {
+        const account = currentAccount();
+        const member = currentMember();
+        const myRequests = requestScopeForRole(currentRole()).filter((item) => item.actorAccountId === account.id || item.targetMemberId === member.id);
+        const tag = statusTag(member.status);
+
+        return `
+          <section class="profile-grid">
+            <article class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>我的信息</h3>
+                  <p>查看个人档案与账号信息</p>
+                </div>
+                <div class="page-actions">
+                  <button class="toolbar-btn" data-open-modal="profile_edit" data-id="${member.id}">编辑我的信息</button>
+                  <button class="toolbar-btn" data-open-modal="change_password" data-id="${account.id}">修改密码</button>
+                </div>
+              </div>
+              <div class="kv-list">
+                <div class="kv-item"><span>姓名</span><strong>${escapeHtml(member.name)}</strong></div>
+                <div class="kv-item"><span>角色</span><strong>${escapeHtml(roleLabel(account.role))}</strong></div>
+                <div class="kv-item"><span>所属支部</span><strong>${escapeHtml(branchName(member.branchId))}</strong></div>
+                <div class="kv-item"><span>部门 / 职务</span><strong>${escapeHtml(member.department)} / ${escapeHtml(member.position || "-")}</strong></div>
+                <div class="kv-item"><span>联系方式</span><strong>${escapeHtml(member.phone || "-")} / ${escapeHtml(member.email || "-")}</strong></div>
+                <div class="kv-item"><span>党员状态</span><strong><span class="tag ${tag[1]}">${tag[0]}</span></strong></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>我的变更记录</h3>
+                  <p>普通党员和支部书记可查看自己提交的申请状态</p>
+                </div>
+                <span class="tag primary">共 ${myRequests.length} 条</span>
+              </div>
+              <div class="request-list">
+                ${myRequests.length ? myRequests.map((item) => {
+                  const status = statusTag(item.status);
+                  return `
+                    <article class="request-item">
+                      <h4>${escapeHtml(item.changedFields.join("、"))}</h4>
+                      <p>${escapeHtml(item.createdAt)} · ${escapeHtml(item.reason || "无说明")}</p>
+                      <p style="margin-top: 8px;">当前状态：<span class="tag ${status[1]}">${status[0]}</span></p>
+                      ${item.reviewComment ? `<p style="margin-top: 8px;">处理意见：${escapeHtml(item.reviewComment)}</p>` : ""}
+                    </article>
+                  `;
+                }).join("") : `<div class="empty-state"><h3>暂无申请记录</h3><p>如果修改敏感字段，系统会自动生成申请。</p></div>`}
+              </div>
+            </article>
+          </section>
+        `;
+      }
+
+      function renderCurrentPage() {
+        if (ui.activePage === "dashboard") return renderDashboard();
+        if (ui.activePage === "members") return renderMembersPage();
+        if (ui.activePage === "branches") return renderBranchesPage();
+        if (ui.activePage === "my_branch") return renderMyBranchPage();
+        if (ui.activePage === "approvals") return renderApprovalsPage();
+        if (ui.activePage === "accounts") return renderAccountsPage();
+        if (ui.activePage === "branch_directory") return renderBranchDirectoryPage();
+        return renderProfilePage();
+      }
+
+      function renderApp() {
+        if (!currentAccount()) {
+          renderLogin();
+          return;
+        }
+
+        if (!canAccess(ui.activePage)) {
+          ui.activePage = DEFAULT_PAGE_BY_ROLE[currentRole()];
+        }
+
+        document.getElementById("login-screen").classList.add("hidden");
+        document.getElementById("app-screen").classList.remove("hidden");
+
+        renderNav();
+        renderTopbar();
+        document.getElementById("page-content").innerHTML = renderCurrentPage();
+      }
+
+      function exportData() {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `party-personnel-data-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast("本地数据已导出", "success");
+      }
+
+      function resetData() {
+        const ok = window.confirm("确认恢复演示数据吗？当前本地修改将被覆盖。");
+        if (!ok) return;
+        state = clone(DEFAULT_DATA);
+        saveState();
+        showToast("已恢复演示数据", "success");
+        renderApp();
+      }
+
+      function filteredMemberOptions(limitToBranchId = "", selectedId = "") {
+        return state.members
+          .filter((item) => !limitToBranchId || item.branchId === limitToBranchId)
+          .map((item) => `<option value="${escapeHtml(item.id)}" ${selectedId === item.id ? "selected" : ""}>${escapeHtml(item.name)} (${escapeHtml(branchName(item.branchId))})</option>`)
+          .join("");
+      }
+
+      function branchOptions(selectedId = "", restrictBranchId = "") {
+        const list = restrictBranchId ? state.branches.filter((item) => item.id === restrictBranchId) : state.branches;
+        return list.map((item) => `<option value="${escapeHtml(item.id)}" ${selectedId === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("");
+      }
+
+      function openModal(type, id = "") {
+        ui.modal = { type, id };
+        const modal = document.getElementById("modal");
+        const title = document.getElementById("modal-title");
+        const desc = document.getElementById("modal-desc");
+        const fields = document.getElementById("modal-fields");
+        const form = document.getElementById("modal-form");
+        form.classList.remove("hidden");
+
+        if (type === "member_view") {
+          const member = memberById(id);
+          title.textContent = "党员详情";
+          desc.textContent = "只读查看当前人员档案。";
+          fields.innerHTML = renderReadOnlyMember(member);
+          form.classList.add("hidden");
+        } else if (type === "branch_view") {
+          const branch = branchById(id);
+          title.textContent = "支部详情";
+          desc.textContent = "查看支部基础信息和成员数量。";
+          fields.innerHTML = renderReadOnlyBranch(branch);
+          form.classList.add("hidden");
+        } else if (type === "request_view") {
+          const request = state.requests.find((item) => item.id === id);
+          title.textContent = "申请详情";
+          desc.textContent = "查看本次人员变更申请的前后内容。";
+          fields.innerHTML = renderReadOnlyRequest(request);
+          form.classList.add("hidden");
+        } else {
+          const config = modalFormConfig(type, id);
+          title.textContent = config.title;
+          desc.textContent = config.desc;
+          fields.innerHTML = config.fields;
+        }
+
+        modal.classList.remove("hidden");
+      }
+
+      function closeModal() {
+        document.getElementById("modal").classList.add("hidden");
+        document.getElementById("modal-form").reset();
+        ui.modal = { type: null, id: null };
+      }
+
+      function renderReadOnlyMember(member) {
+        const tag = statusTag(member.status);
+        return `
+          <div class="field full"><label>姓名</label><input value="${escapeHtml(member.name)}" disabled /></div>
+          <div class="field"><label>所属支部</label><input value="${escapeHtml(branchName(member.branchId))}" disabled /></div>
+          <div class="field"><label>部门 / 职务</label><input value="${escapeHtml(member.department)} / ${escapeHtml(member.position || "-")}" disabled /></div>
+          <div class="field"><label>联系方式</label><input value="${escapeHtml(member.phone || "-")} / ${escapeHtml(member.email || "-")}" disabled /></div>
+          <div class="field"><label>政治身份</label><input value="${escapeHtml(member.politicalStatus || "-")}" disabled /></div>
+          <div class="field"><label>党员状态</label><input value="${escapeHtml(tag[0])}" disabled /></div>
+          <div class="field"><label>入党日期</label><input value="${escapeHtml(member.joinDate || "-")}" disabled /></div>
+          <div class="field"><label>转正日期</label><input value="${escapeHtml(member.regularDate || "-")}" disabled /></div>
+          <div class="field full"><label>备注</label><textarea disabled>${escapeHtml(member.remarks || "")}</textarea></div>
+        `;
+      }
+
+      function renderReadOnlyBranch(branch) {
+        const tag = statusTag(branch.status);
+        const members = state.members.filter((item) => item.branchId === branch.id);
+        return `
+          <div class="field"><label>支部名称</label><input value="${escapeHtml(branch.name)}" disabled /></div>
+          <div class="field"><label>支部代码</label><input value="${escapeHtml(branch.code || "-")}" disabled /></div>
+          <div class="field"><label>支部书记</label><input value="${escapeHtml(branch.secretaryName || "-")}" disabled /></div>
+          <div class="field"><label>状态</label><input value="${escapeHtml(tag[0])}" disabled /></div>
+          <div class="field"><label>成立日期</label><input value="${escapeHtml(branch.establishDate || "-")}" disabled /></div>
+          <div class="field"><label>成员数量</label><input value="${members.length}" disabled /></div>
+          <div class="field full"><label>描述</label><textarea disabled>${escapeHtml(branch.description || "")}</textarea></div>
+        `;
+      }
+
+      function renderReadOnlyRequest(request) {
+        const member = memberById(request.targetMemberId);
+        const status = statusTag(request.status);
+        return `
+          <div class="field"><label>目标党员</label><input value="${escapeHtml(member ? member.name : "-")}" disabled /></div>
+          <div class="field"><label>申请人</label><input value="${escapeHtml(request.actorName || "-")}" disabled /></div>
+          <div class="field"><label>审批状态</label><input value="${escapeHtml(status[0])}" disabled /></div>
+          <div class="field"><label>变更级别</label><input value="${escapeHtml(requestSeverityTag(request.severity)[0])}" disabled /></div>
+          <div class="field full"><label>变更字段</label><input value="${escapeHtml(request.changedFields.join("、"))}" disabled /></div>
+          <div class="field full"><label>变更前</label><textarea disabled>${escapeHtml(formatChangeSnapshot(request.beforeSnapshot))}</textarea></div>
+          <div class="field full"><label>变更后</label><textarea disabled>${escapeHtml(formatChangeSnapshot(request.afterSnapshot))}</textarea></div>
+          <div class="field full"><label>申请原因</label><textarea disabled>${escapeHtml(request.reason || "")}</textarea></div>
+          <div class="field full"><label>处理意见</label><textarea disabled>${escapeHtml(request.reviewComment || "")}</textarea></div>
+        `;
+      }
+
+      function modalFormConfig(type, id) {
+        const role = currentRole();
+        const currentMemberInfo = currentMember();
+
+        if (type === "member_create" || type === "member_edit") {
+          const isEdit = type === "member_edit";
+          const record = isEdit ? memberById(id) : {
+            name: "",
+            gender: "男",
+            branchId: role === "branch_admin" ? currentMemberInfo.branchId : "",
+            department: "",
+            position: "",
+            phone: "",
+            email: "",
+            birthday: "",
+            politicalStatus: "中共党员",
+            joinDate: "",
+            regularDate: "",
+            status: "active",
+            remarks: "",
+          };
+          return {
+            title: isEdit ? "编辑党员" : "新增党员",
+            desc: role === "branch_admin" ? "支部书记修改敏感字段时会自动进入审批流程。" : "党建纪检部可直接维护党员档案。",
+            fields: `
+              <div class="field">
+                <label>姓名 *</label>
+                <input name="name" value="${escapeHtml(record.name || "")}" required />
+              </div>
+              <div class="field">
+                <label>性别</label>
+                <select name="gender">
+                  <option value="男" ${record.gender === "男" ? "selected" : ""}>男</option>
+                  <option value="女" ${record.gender === "女" ? "selected" : ""}>女</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>所属支部</label>
+                <select name="branchId" ${role === "branch_admin" ? "disabled" : ""}>
+                  ${branchOptions(record.branchId, role === "branch_admin" ? currentMemberInfo.branchId : "")}
+                </select>
+                ${role === "branch_admin" ? `<input type="hidden" name="branchId" value="${escapeHtml(currentMemberInfo.branchId)}" />` : ""}
+              </div>
+              <div class="field">
+                <label>部门 *</label>
+                <input name="department" value="${escapeHtml(record.department || "")}" required />
+              </div>
+              <div class="field">
+                <label>职务</label>
+                <input name="position" value="${escapeHtml(record.position || "")}" />
+              </div>
+              <div class="field">
+                <label>联系电话</label>
+                <input name="phone" value="${escapeHtml(record.phone || "")}" />
+              </div>
+              <div class="field">
+                <label>邮箱</label>
+                <input name="email" value="${escapeHtml(record.email || "")}" />
+              </div>
+              <div class="field">
+                <label>出生日期</label>
+                <input name="birthday" type="date" value="${escapeHtml(record.birthday || "")}" />
+              </div>
+              <div class="field">
+                <label>政治身份</label>
+                <select name="politicalStatus">
+                  <option value="中共党员" ${record.politicalStatus === "中共党员" ? "selected" : ""}>中共党员</option>
+                  <option value="中共预备党员" ${record.politicalStatus === "中共预备党员" ? "selected" : ""}>中共预备党员</option>
+                  <option value="入党积极分子" ${record.politicalStatus === "入党积极分子" ? "selected" : ""}>入党积极分子</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>入党日期</label>
+                <input name="joinDate" type="date" value="${escapeHtml(record.joinDate || "")}" />
+              </div>
+              <div class="field">
+                <label>转正日期</label>
+                <input name="regularDate" type="date" value="${escapeHtml(record.regularDate || "")}" />
+              </div>
+              <div class="field">
+                <label>党员状态</label>
+                <select name="status">
+                  <option value="active" ${record.status === "active" ? "selected" : ""}>正常</option>
+                  <option value="probationary" ${record.status === "probationary" ? "selected" : ""}>预备党员</option>
+                  <option value="transferred_out" ${record.status === "transferred_out" ? "selected" : ""}>转出</option>
+                  <option value="suspended" ${record.status === "suspended" ? "selected" : ""}>停止党籍</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label>备注</label>
+                <textarea name="remarks">${escapeHtml(record.remarks || "")}</textarea>
+              </div>
+            `,
+          };
+        }
+
+        if (type === "branch_create" || type === "branch_edit" || type === "branch_edit_lite") {
+          const isEdit = type !== "branch_create";
+          const record = isEdit ? branchById(id) : {
+            name: "",
+            code: "",
+            description: "",
+            establishDate: "",
+            secretaryName: "",
+            contactPhone: "",
+            status: "active",
+          };
+          const lite = type === "branch_edit_lite";
+          return {
+            title: isEdit ? "编辑支部" : "新建支部",
+            desc: lite ? "支部书记只维护本支部基础信息。" : "党建纪检部可维护支部基础资料。",
+            fields: `
+              <div class="field">
+                <label>支部名称 *</label>
+                <input name="name" value="${escapeHtml(record.name || "")}" ${lite ? "disabled" : ""} required />
+                ${lite ? `<input type="hidden" name="name" value="${escapeHtml(record.name || "")}" />` : ""}
+              </div>
+              <div class="field">
+                <label>支部代码 *</label>
+                <input name="code" value="${escapeHtml(record.code || "")}" ${lite ? "disabled" : ""} required />
+                ${lite ? `<input type="hidden" name="code" value="${escapeHtml(record.code || "")}" />` : ""}
+              </div>
+              <div class="field">
+                <label>支部书记</label>
+                <input name="secretaryName" value="${escapeHtml(record.secretaryName || "")}" />
+              </div>
+              <div class="field">
+                <label>联系电话</label>
+                <input name="contactPhone" value="${escapeHtml(record.contactPhone || "")}" />
+              </div>
+              <div class="field">
+                <label>成立日期</label>
+                <input name="establishDate" type="date" value="${escapeHtml(record.establishDate || "")}" ${lite ? "disabled" : ""} />
+                ${lite ? `<input type="hidden" name="establishDate" value="${escapeHtml(record.establishDate || "")}" />` : ""}
+              </div>
+              <div class="field">
+                <label>状态</label>
+                <select name="status" ${lite ? "disabled" : ""}>
+                  <option value="active" ${record.status === "active" ? "selected" : ""}>正常</option>
+                  <option value="inactive" ${record.status === "inactive" ? "selected" : ""}>停用</option>
+                </select>
+                ${lite ? `<input type="hidden" name="status" value="${escapeHtml(record.status || "active")}" />` : ""}
+              </div>
+              <div class="field full">
+                <label>支部描述</label>
+                <textarea name="description">${escapeHtml(record.description || "")}</textarea>
+              </div>
+            `,
+          };
+        }
+
+        if (type === "account_create" || type === "account_edit") {
+          const isEdit = type === "account_edit";
+          const record = isEdit ? accountById(id) : {
+            username: "",
+            role: "member",
+            memberId: "",
+            status: "active",
+            mustChangePassword: true,
+          };
+          return {
+            title: isEdit ? "编辑账号" : "新增账号",
+            desc: "账号与人员一一绑定，角色决定登录后的空间。",
+            fields: `
+              <div class="field">
+                <label>账号名 *</label>
+                <input name="username" value="${escapeHtml(record.username || "")}" required />
+              </div>
+              <div class="field">
+                <label>绑定人员 *</label>
+                <select name="memberId" required>
+                  <option value="">请选择</option>
+                  ${filteredMemberOptions("", record.memberId || "")}
+                </select>
+              </div>
+              <div class="field">
+                <label>角色</label>
+                <select name="role">
+                  <option value="leader" ${record.role === "leader" ? "selected" : ""}>党委领导</option>
+                  <option value="dept" ${record.role === "dept" ? "selected" : ""}>党建纪检部</option>
+                  <option value="branch_admin" ${record.role === "branch_admin" ? "selected" : ""}>党支部书记/委员</option>
+                  <option value="member" ${record.role === "member" ? "selected" : ""}>普通党员</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>状态</label>
+                <select name="status">
+                  <option value="active" ${record.status === "active" ? "selected" : ""}>启用</option>
+                  <option value="disabled" ${record.status === "disabled" ? "selected" : ""}>停用</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>首次登录改密</label>
+                <select name="mustChangePassword">
+                  <option value="true" ${record.mustChangePassword ? "selected" : ""}>是</option>
+                  <option value="false" ${record.mustChangePassword ? "" : "selected"}>否</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>${isEdit ? "如需改密码，直接输入新密码" : "初始密码"}</label>
+                <input name="password" value="${isEdit ? "" : "123456"}" />
+              </div>
+            `,
+          };
+        }
+
+        if (type === "profile_edit") {
+          const record = currentMember();
+          return {
+            title: "编辑我的信息",
+            desc: "普通信息直接保存；敏感字段会自动转为变更申请。",
+            fields: `
+              <div class="field">
+                <label>姓名</label>
+                <input name="name" value="${escapeHtml(record.name || "")}" />
+              </div>
+              <div class="field">
+                <label>所属支部</label>
+                <select name="branchId" ${currentRole() === "member" ? "disabled" : ""}>
+                  ${branchOptions(record.branchId)}
+                </select>
+                ${currentRole() === "member" ? `<input type="hidden" name="branchId" value="${escapeHtml(record.branchId)}" />` : ""}
+              </div>
+              <div class="field">
+                <label>部门</label>
+                <input name="department" value="${escapeHtml(record.department || "")}" />
+              </div>
+              <div class="field">
+                <label>职务</label>
+                <input name="position" value="${escapeHtml(record.position || "")}" />
+              </div>
+              <div class="field">
+                <label>联系电话</label>
+                <input name="phone" value="${escapeHtml(record.phone || "")}" />
+              </div>
+              <div class="field">
+                <label>邮箱</label>
+                <input name="email" value="${escapeHtml(record.email || "")}" />
+              </div>
+              <div class="field">
+                <label>政治身份</label>
+                <select name="politicalStatus">
+                  <option value="中共党员" ${record.politicalStatus === "中共党员" ? "selected" : ""}>中共党员</option>
+                  <option value="中共预备党员" ${record.politicalStatus === "中共预备党员" ? "selected" : ""}>中共预备党员</option>
+                  <option value="入党积极分子" ${record.politicalStatus === "入党积极分子" ? "selected" : ""}>入党积极分子</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>入党日期</label>
+                <input name="joinDate" type="date" value="${escapeHtml(record.joinDate || "")}" />
+              </div>
+              <div class="field">
+                <label>转正日期</label>
+                <input name="regularDate" type="date" value="${escapeHtml(record.regularDate || "")}" />
+              </div>
+              <div class="field full">
+                <label>备注</label>
+                <textarea name="remarks">${escapeHtml(record.remarks || "")}</textarea>
+              </div>
+            `,
+          };
+        }
+
+        if (type === "change_password") {
+          return {
+            title: "修改密码",
+            desc: "首次登录或密码重置后建议立即修改。",
+            fields: `
+              <div class="field">
+                <label>新密码</label>
+                <input name="newPassword" type="password" required />
+              </div>
+              <div class="field">
+                <label>确认新密码</label>
+                <input name="confirmPassword" type="password" required />
+              </div>
+            `,
+          };
+        }
+
+        return {
+          title: "编辑",
+          desc: "保存后写入本地存储。",
+          fields: "",
+        };
+      }
+
+      function collectModalPayload(formData) {
+        const get = (name) => (formData.get(name) || "").toString().trim();
+        const type = ui.modal.type;
+
+        if (type === "member_create" || type === "member_edit") {
+          return {
+            id: ui.modal.id || uid("m"),
+            name: get("name"),
+            gender: get("gender") || "男",
+            branchId: get("branchId"),
+            department: get("department"),
+            position: get("position"),
+            phone: get("phone"),
+            email: get("email"),
+            birthday: get("birthday"),
+            politicalStatus: get("politicalStatus"),
+            joinDate: get("joinDate"),
+            regularDate: get("regularDate"),
+            status: get("status") || "active",
+            remarks: get("remarks"),
+          };
+        }
+
+        if (type === "branch_create" || type === "branch_edit" || type === "branch_edit_lite") {
+          return {
+            id: ui.modal.id || uid("b"),
+            name: get("name"),
+            code: get("code"),
+            description: get("description"),
+            establishDate: get("establishDate"),
+            secretaryName: get("secretaryName"),
+            contactPhone: get("contactPhone"),
+            status: get("status") || "active",
+          };
+        }
+
+        if (type === "account_create" || type === "account_edit") {
+          const existing = ui.modal.id ? accountById(ui.modal.id) : null;
+          return {
+            id: ui.modal.id || uid("a"),
+            username: get("username"),
+            role: get("role") || "member",
+            memberId: get("memberId"),
+            status: get("status") || "active",
+            mustChangePassword: get("mustChangePassword") === "true",
+            password: get("password") || (existing ? existing.password : "123456"),
+          };
+        }
+
+        if (type === "profile_edit") {
+          const record = currentMember();
+          return {
+            ...record,
+            name: get("name"),
+            branchId: get("branchId"),
+            department: get("department"),
+            position: get("position"),
+            phone: get("phone"),
+            email: get("email"),
+            politicalStatus: get("politicalStatus"),
+            joinDate: get("joinDate"),
+            regularDate: get("regularDate"),
+            remarks: get("remarks"),
+          };
+        }
+
+        return {
+          newPassword: get("newPassword"),
+          confirmPassword: get("confirmPassword"),
+        };
+      }
+
+      function validatePayload(type, payload) {
+        if (type === "member_create" || type === "member_edit") {
+          return payload.name && payload.department && payload.branchId;
+        }
+        if (type === "branch_create" || type === "branch_edit" || type === "branch_edit_lite") {
+          return payload.name && payload.code;
+        }
+        if (type === "account_create" || type === "account_edit") {
+          return payload.username && payload.memberId && payload.role;
+        }
+        if (type === "profile_edit") {
+          return payload.name;
+        }
+        if (type === "change_password") {
+          return payload.newPassword && payload.newPassword === payload.confirmPassword;
+        }
+        return true;
+      }
+
+      function updateCollection(collectionName, record) {
+        const index = state[collectionName].findIndex((item) => item.id === record.id);
+        if (index >= 0) {
+          state[collectionName][index] = record;
+        } else {
+          state[collectionName].unshift(record);
+        }
+      }
+
+      function createRequestForMemberChange(original, proposed, reason) {
+        const account = currentAccount();
+        const member = currentMember();
+        const changedFields = Object.keys(proposed).filter((field) => proposed[field] !== original[field]);
+        if (!changedFields.length) return false;
+
+        const beforeSnapshot = {};
+        const afterSnapshot = {};
+        for (const field of changedFields) {
+          beforeSnapshot[field] = field === "branchId" ? branchName(original[field]) : original[field];
+          afterSnapshot[field] = field === "branchId" ? branchName(proposed[field]) : proposed[field];
+        }
+
+        const severity = changedFields.some((field) => SENSITIVE_MEMBER_FIELDS.has(field)) ? "critical" : "normal";
+        state.requests.unshift({
+          id: uid("r"),
+          type: "member_change",
+          targetMemberId: original.id,
+          actorAccountId: account.id,
+          actorRole: account.role,
+          actorName: member.name,
+          branchId: member.branchId,
+          changedFields,
+          severity,
+          stage: "dept",
+          status: "pending_dept",
+          createdAt: new Date().toLocaleString("zh-CN"),
+          reason: reason || "提交人员信息变更申请",
+          beforeSnapshot,
+          afterSnapshot,
+          reviewComment: "",
+        });
+        return true;
+      }
+
+      function splitSensitiveChanges(original, proposed) {
+        const safePatch = {};
+        const sensitivePatch = {};
+        for (const key of Object.keys(proposed)) {
+          if (key === "id") continue;
+          if (proposed[key] === original[key]) continue;
+          if (SENSITIVE_MEMBER_FIELDS.has(key)) {
+            sensitivePatch[key] = proposed[key];
+          } else {
+            safePatch[key] = proposed[key];
+          }
+        }
+        return { safePatch, sensitivePatch };
+      }
+
+      function saveMemberByRole(payload) {
+        const role = currentRole();
+        if (!ui.modal.id) {
+          updateCollection("members", payload);
+          saveState();
+          showToast("党员新增成功", "success");
+          return;
+        }
+
+        const original = memberById(payload.id);
+        if (!original) return;
+
+        if (role === "dept") {
+          updateCollection("members", payload);
+          saveState();
+          showToast("党员信息已更新", "success");
+          return;
+        }
+
+        if (role === "branch_admin") {
+          const { safePatch, sensitivePatch } = splitSensitiveChanges(original, payload);
+          if (Object.keys(safePatch).length) {
+            updateCollection("members", { ...original, ...safePatch });
+          }
+          if (Object.keys(sensitivePatch).length) {
+            createRequestForMemberChange(original, { ...original, ...sensitivePatch }, "支部提交党员敏感信息变更");
+            showToast("敏感字段已提交审批，普通字段已直接保存", "warning");
+          } else {
+            showToast("党员信息已更新", "success");
+          }
+          saveState();
+          return;
+        }
+
+        updateCollection("members", payload);
+        saveState();
+      }
+
+      function saveProfileByRole(payload) {
+        const role = currentRole();
+        const original = currentMember();
+        if (role === "leader" || role === "dept") {
+          updateCollection("members", payload);
+          saveState();
+          showToast("个人信息已更新", "success");
+          return;
+        }
+
+        const { safePatch, sensitivePatch } = splitSensitiveChanges(original, payload);
+        if (Object.keys(safePatch).length) {
+          updateCollection("members", { ...original, ...safePatch });
+        }
+        if (Object.keys(sensitivePatch).length) {
+          createRequestForMemberChange(original, { ...original, ...sensitivePatch }, role === "member" ? "本人提交个人信息更正" : "支部书记提交个人信息更正");
+          showToast("普通字段已保存，敏感字段已提交审批", "warning");
+        } else {
+          showToast("个人信息已更新", "success");
+        }
+        saveState();
+      }
+
+      function handleModalSubmit(formData) {
+        const type = ui.modal.type;
+        const payload = collectModalPayload(formData);
+        if (!validatePayload(type, payload)) {
+          showToast(type === "change_password" ? "两次密码不一致或为空" : "请填写必填项", "danger");
+          return;
+        }
+
+        if (type === "member_create" || type === "member_edit") {
+          saveMemberByRole(payload);
+        } else if (type === "branch_create" || type === "branch_edit" || type === "branch_edit_lite") {
+          updateCollection("branches", payload);
+          saveState();
+          showToast("支部信息已保存", "success");
+        } else if (type === "account_create" || type === "account_edit") {
+          const duplicate = state.accounts.find((item) => item.username === payload.username && item.id !== payload.id);
+          if (duplicate) {
+            showToast("账号名已存在", "danger");
+            return;
+          }
+          updateCollection("accounts", payload);
+          saveState();
+          showToast("账号信息已保存", "success");
+        } else if (type === "profile_edit") {
+          saveProfileByRole(payload);
+        } else if (type === "change_password") {
+          const account = accountById(ui.modal.id || currentAccount().id);
+          account.password = payload.newPassword;
+          account.mustChangePassword = false;
+          saveState();
+          showToast("密码修改成功", "success");
+        }
+
+        closeModal();
+        renderApp();
+      }
+
+      function deleteMember(memberId) {
+        const member = memberById(memberId);
+        if (!member) return;
+        const boundAccount = state.accounts.find((item) => item.memberId === memberId);
+        if (boundAccount) {
+          showToast("该党员已绑定账号，请先停用或调整账号", "warning");
+          return;
+        }
+        const ok = window.confirm(`确认删除党员“${member.name}”吗？`);
+        if (!ok) return;
+        state.members = state.members.filter((item) => item.id !== memberId);
+        saveState();
+        renderApp();
+        showToast("党员已删除", "success");
+      }
+
+      function resetPassword(accountId) {
+        const account = accountById(accountId);
+        account.password = "123456";
+        account.mustChangePassword = true;
+        saveState();
+        renderApp();
+        showToast("密码已重置为 123456，并要求首次登录修改", "warning");
+      }
+
+      function toggleAccountStatus(accountId) {
+        const account = accountById(accountId);
+        account.status = account.status === "active" ? "disabled" : "active";
+        saveState();
+        renderApp();
+        showToast(account.status === "active" ? "账号已启用" : "账号已停用", "success");
+      }
+
+      function applyRequest(requestId, action) {
+        const request = state.requests.find((item) => item.id === requestId);
+        if (!request) return;
+        const comment = action === "reject" ? window.prompt("请输入退回原因：", "") || "已退回" : "";
+
+        if (action === "forward") {
+          request.stage = "leader";
+          request.status = "pending_leader";
+          request.reviewComment = "党建纪检部已复核，提交领导审批。";
+          saveState();
+          renderApp();
+          showToast("已提交党委领导审批", "success");
+          return;
+        }
+
+        if (action === "reject") {
+          request.status = "rejected";
+          request.reviewComment = comment;
+          saveState();
+          renderApp();
+          showToast("申请已退回", "warning");
+          return;
+        }
+
+        const member = memberById(request.targetMemberId);
+        if (!member) return;
+        const patch = {};
+        for (const field of Object.keys(request.afterSnapshot || {})) {
+          if (field === "branchId") {
+            const branch = state.branches.find((item) => item.name === request.afterSnapshot[field]);
+            patch[field] = branch ? branch.id : member.branchId;
+          } else {
+            patch[field] = request.afterSnapshot[field];
+          }
+        }
+        updateCollection("members", { ...member, ...patch });
+        request.status = "approved";
+        request.reviewComment = currentRole() === "leader" ? "党委领导审批通过。" : "党建纪检部审批通过。";
+        saveState();
+        renderApp();
+        showToast("申请已通过并生效", "success");
+      }
+
+      function bindEvents() {
+        document.getElementById("login-form").addEventListener("submit", (event) => {
+          event.preventDefault();
+          login(
+            document.getElementById("login-username").value,
+            document.getElementById("login-password").value
+          );
+        });
+
+        document.addEventListener("click", (event) => {
+          const fillBtn = event.target.closest("[data-fill-login]");
+          if (fillBtn) {
+            document.getElementById("login-username").value = fillBtn.dataset.fillLogin;
+            document.getElementById("login-password").value = "123456";
+            return;
+          }
+
+          const navBtn = event.target.closest("[data-page]");
+          if (navBtn) {
+            setActivePage(navBtn.dataset.page);
+            return;
+          }
+
+          const pageBtn = event.target.closest("[data-go-page]");
+          if (pageBtn) {
+            setActivePage(pageBtn.dataset.goPage);
+            return;
+          }
+
+          const modalBtn = event.target.closest("[data-open-modal]");
+          if (modalBtn) {
+            openModal(modalBtn.dataset.openModal, modalBtn.dataset.id || "");
+            return;
+          }
+
+          const deleteBtn = event.target.closest("[data-delete-member]");
+          if (deleteBtn) {
+            deleteMember(deleteBtn.dataset.deleteMember);
+            return;
+          }
+
+          const resetBtn = event.target.closest("[data-reset-password]");
+          if (resetBtn) {
+            resetPassword(resetBtn.dataset.resetPassword);
+            return;
+          }
+
+          const toggleBtn = event.target.closest("[data-toggle-account]");
+          if (toggleBtn) {
+            toggleAccountStatus(toggleBtn.dataset.toggleAccount);
+            return;
+          }
+
+          const requestBtn = event.target.closest("[data-request-action]");
+          if (requestBtn) {
+            applyRequest(requestBtn.dataset.id, requestBtn.dataset.requestAction);
+            return;
+          }
+        });
+
+        document.addEventListener("input", (event) => {
+          const id = event.target.id;
+          if (!id) return;
+          if (id === "filter-member-keyword") ui.filters.memberKeyword = event.target.value;
+          if (id === "filter-member-status") ui.filters.memberStatus = event.target.value;
+          if (id === "filter-branch-keyword") ui.filters.branchKeyword = event.target.value;
+          if (id === "filter-request-keyword") ui.filters.requestKeyword = event.target.value;
+          if (id === "filter-request-status") ui.filters.requestStatus = event.target.value;
+          if (id === "filter-account-keyword") ui.filters.accountKeyword = event.target.value;
+          if (id === "filter-directory-keyword") ui.filters.directoryKeyword = event.target.value;
+          renderApp();
+        });
+
+        document.addEventListener("change", (event) => {
+          const id = event.target.id;
+          if (id === "filter-member-status") ui.filters.memberStatus = event.target.value;
+          if (id === "filter-request-status") ui.filters.requestStatus = event.target.value;
+          renderApp();
+        });
+
+        document.getElementById("logout-btn").addEventListener("click", logout);
+        document.getElementById("export-data-btn").addEventListener("click", exportData);
+        document.getElementById("reset-data-btn").addEventListener("click", resetData);
+        document.getElementById("modal-close").addEventListener("click", closeModal);
+        document.getElementById("modal-cancel").addEventListener("click", closeModal);
+        document.getElementById("modal").addEventListener("click", (event) => {
+          if (event.target.id === "modal") closeModal();
+        });
+        document.getElementById("modal-form").addEventListener("submit", (event) => {
+          event.preventDefault();
+          handleModalSubmit(new FormData(event.target));
+        });
+      }
+
+      function init() {
+        bindEvents();
+        document.getElementById("today-label").textContent = nowLabel();
+        renderApp();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
