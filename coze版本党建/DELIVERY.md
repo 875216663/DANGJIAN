@@ -23,9 +23,13 @@ Vercel 项目建议：
 - Repository：`875216663/DANGJIAN`
 - Root Directory：`coze版本党建/source/projects/client`
 - `vercel.json` 已内置：
-  - `installCommand`: `npm install`
-  - `buildCommand`: `npm run build:web`
+  - `installCommand`: `corepack enable && pnpm install --dir .. --frozen-lockfile`
+  - `buildCommand`: `pnpm run build:web`
   - `outputDirectory`: `dist`
+- 说明：
+  - `client` 是 `source/projects` workspace 子包
+  - 前端部署必须由上层 workspace 安装依赖，不能只在 `client` 目录单独执行 `npm install`
+  - 若只装子包依赖，Expo/Metro 会在构建时找不到 `source/projects/node_modules`
 
 前端环境变量：
 

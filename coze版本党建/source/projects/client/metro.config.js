@@ -2,6 +2,17 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const connect = require('connect');
 const { withUniwindConfig } = require('uniwind/metro');
+const { existsSync, mkdirSync } = require('fs');
+const { resolve } = require('path');
+
+const workspaceNodeModulesPath = resolve(__dirname, '..', 'node_modules');
+
+// Expo 在 workspace 模式下会探测上层 node_modules。
+// 部署平台如果只安装了子包依赖，这里会因为目录不存在直接构建失败。
+// 先确保目录存在，让 Metro 能继续回退到当前 client/node_modules 做解析。
+if (!existsSync(workspaceNodeModulesPath)) {
+  mkdirSync(workspaceNodeModulesPath, { recursive: true });
+}
 
 const config = getDefaultConfig(__dirname);
 
