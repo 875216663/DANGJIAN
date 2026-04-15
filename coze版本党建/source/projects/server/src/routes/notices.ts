@@ -9,7 +9,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const page = Number(req.query.page ?? '1');
     const limit = Number(req.query.limit ?? '20');
-    const store = readStore();
+    const store = await readStore();
 
     const notices = [...store.notices]
       .filter((notice) => notice.status === 'published')
@@ -38,7 +38,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const notice = updateStore((store) => {
+    const notice = await updateStore((store) => {
       const target = store.notices.find((item) => item.id === id);
 
       if (!target) {
@@ -71,7 +71,7 @@ router.post('/', authMiddleware, requireRole('party_inspection', 'branch_secreta
       return res.status(400).json({ error: '标题和内容不能为空' });
     }
 
-    const created = updateStore((store) => {
+    const created = await updateStore((store) => {
       const notice = {
         id: getNextNumericId(store.notices),
         title: String(title).trim(),
@@ -101,7 +101,7 @@ router.delete('/:id', authMiddleware, requireRole('party_inspection', 'party_com
   try {
     const id = Number(req.params.id);
 
-    const deleted = updateStore((store) => {
+    const deleted = await updateStore((store) => {
       const index = store.notices.findIndex((notice) => notice.id === id);
       if (index < 0) {
         return false;

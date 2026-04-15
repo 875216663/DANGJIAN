@@ -28,7 +28,7 @@ router.get('/', authMiddleware, branchFilter, async (req: AuthRequest, res) => {
     const status = String(req.query.status ?? '').trim();
     const branchId = Number(req.query.branch_id ?? '0');
 
-    const store = readStore();
+    const store = await readStore();
     let members = store.members.map((member) => toMemberView(member, store));
 
     if (branchId) {
@@ -68,7 +68,7 @@ router.get('/export', authMiddleware, branchFilter, async (req: AuthRequest, res
     const branchId = Number(req.query.branch_id ?? '0');
     const status = String(req.query.status ?? '').trim();
 
-    const store = readStore();
+    const store = await readStore();
     let members = store.members.map((member) => toMemberView(member, store));
 
     if (branchId) {
@@ -119,7 +119,7 @@ router.get('/export', authMiddleware, branchFilter, async (req: AuthRequest, res
 router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const store = readStore();
+    const store = await readStore();
     const member = store.members.find((item) => item.id === id);
 
     if (!member) {
@@ -160,7 +160,7 @@ router.post('/import', upload.single('file'), authMiddleware, async (req: AuthRe
       });
     }
 
-    const importedMembers = updateStore((store) => {
+    const importedMembers = await updateStore((store) => {
       return jsonData.map((row) => {
         const branchName = row['所属支部']?.trim() || '第一党支部';
         let branch = findBranchByName(store, branchName);
@@ -220,7 +220,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
 
-    const updatedMember = updateStore((store) => {
+    const updatedMember = await updateStore((store) => {
       const member = store.members.find((item) => item.id === id);
 
       if (!member) {
@@ -303,7 +303,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '请选择入党日期' });
     }
 
-    const newMember = updateStore((store) => {
+    const newMember = await updateStore((store) => {
       const branchName = memberData.branch_name?.trim() || '第一党支部';
       let branch = findBranchByName(store, branchName);
 

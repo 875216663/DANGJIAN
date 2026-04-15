@@ -15,7 +15,7 @@ const router = Router();
 router.get('/', authMiddleware, branchFilter, async (req: AuthRequest, res) => {
   try {
     const branchId = Number(req.query.branch_id ?? '0');
-    const store = readStore();
+    const store = await readStore();
     let branches = store.branches;
 
     if (branchId) {
@@ -32,7 +32,7 @@ router.get('/', authMiddleware, branchFilter, async (req: AuthRequest, res) => {
 router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const store = readStore();
+    const store = await readStore();
     const branch = findBranchById(store, id);
 
     if (!branch) {
@@ -49,7 +49,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/:id/members', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const store = readStore();
+    const store = await readStore();
     const members = store.members
       .filter((member) => member.branch_id === id)
       .map((member) => toMemberView(member, store));
@@ -64,7 +64,7 @@ router.get('/:id/members', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/:id/activists', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const store = readStore();
+    const store = await readStore();
     const activists = store.activists.filter((activist) => activist.branch_id === id);
 
     res.json(activists);
@@ -91,7 +91,7 @@ router.post('/:id/activists', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '请输入谈话时间' });
     }
 
-    const created = updateStore((store) => {
+    const created = await updateStore((store) => {
       const activist = {
         id: getNextNumericId(store.activists),
         branch_id: branchId,
@@ -137,7 +137,7 @@ router.put('/:id/activists/:activistId', authMiddleware, async (req: AuthRequest
       return res.status(400).json({ error: '请输入谈话时间' });
     }
 
-    const updated = updateStore((store) => {
+    const updated = await updateStore((store) => {
       const activist = store.activists.find(
         (item) => item.id === activistId && item.branch_id === branchId
       );
@@ -179,7 +179,7 @@ router.delete('/:id/activists/:activistId', authMiddleware, async (req: AuthRequ
     const branchId = Number(req.params.id);
     const activistId = Number(req.params.activistId);
 
-    const removed = updateStore((store) => {
+    const removed = await updateStore((store) => {
       const index = store.activists.findIndex(
         (item) => item.id === activistId && item.branch_id === branchId
       );
@@ -218,7 +218,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: '请输入支部代码' });
     }
 
-    const created = updateStore((store) => {
+    const created = await updateStore((store) => {
       const branch = {
         id: getNextNumericId(store.branches),
         name: name.trim(),
@@ -254,7 +254,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
     const id = Number(req.params.id);
     const { name, code, description, establish_date, secretary_id, secretary_name, status } = req.body as Record<string, string>;
 
-    const updated = updateStore((store) => {
+    const updated = await updateStore((store) => {
       const branch = store.branches.find((item) => item.id === id);
 
       if (!branch) {
@@ -302,7 +302,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
 
-    const deleted = updateStore((store) => {
+    const deleted = await updateStore((store) => {
       const hasMembers = store.members.some((member) => member.branch_id === id);
       const hasActivists = store.activists.some((activist) => activist.branch_id === id);
       const hasMeetings = store.meetings.some((meeting) => meeting.branch_id === id);

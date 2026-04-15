@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import dashboardRouter from './routes/dashboard';
@@ -7,6 +8,7 @@ import noticesRouter from './routes/notices';
 import meetingsRouter from './routes/meetings';
 import studyRouter from './routes/study';
 import { auditLog } from './middleware/audit';
+import { isDatabaseEnabled } from './config/database';
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -22,7 +24,10 @@ app.use(auditLog);
 // 健康检查
 app.get('/api/v1/health', (req, res) => {
   console.log('Health check success');
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({
+    status: 'ok',
+    storage: isDatabaseEnabled() ? 'database' : 'local-file',
+  });
 });
 
 // API 路由

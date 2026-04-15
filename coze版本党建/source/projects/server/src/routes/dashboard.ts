@@ -22,7 +22,7 @@ function calculateMonthDistance(monthValue: string) {
 
 router.get('/dashboard', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const store = readStore();
+    const store = await readStore();
     const currentMonth = getCurrentMonth();
     const lastMonth = getLastMonth();
     const feeCompleted = store.members.filter((member) =>
@@ -68,7 +68,7 @@ router.get('/dashboard', authMiddleware, async (req: AuthRequest, res) => {
 
 router.get('/alerts', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const store = readStore();
+    const store = await readStore();
     const alerts = [
       ...store.members
         .filter((member) => member.status === 'probationary' && member.regular_date)
@@ -126,7 +126,7 @@ router.get('/alerts', authMiddleware, async (req: AuthRequest, res) => {
 
 router.get('/todos', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const store = readStore();
+    const store = await readStore();
     const todos = [
       ...store.members
         .filter((member) => member.status === 'probationary')

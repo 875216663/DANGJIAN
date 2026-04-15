@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "check-deps": "npx depcheck",
+    "build:web": "npx expo export --platform web",
     "postinstall": "npm run install-missing",
     "install-missing": "node ./scripts/install-missing-deps.js",
     "lint": "tsc --noEmit; eslint ./ -f ./scripts/formatter.mjs --quiet",

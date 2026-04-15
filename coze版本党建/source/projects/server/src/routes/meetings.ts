@@ -14,7 +14,7 @@ const router = Router();
 router.get('/stats/summary', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const currentYear = new Date().getFullYear();
-    const store = readStore();
+    const store = await readStore();
     const meetings = store.meetings;
 
     res.json({
@@ -40,7 +40,7 @@ router.get('/', authMiddleware, branchFilter, async (req: AuthRequest, res) => {
     const limit = Number(req.query.limit ?? '20');
     const branchId = Number(req.query.branch_id ?? '0');
 
-    const store = readStore();
+    const store = await readStore();
     let meetings = store.meetings;
 
     if (branchId) {
@@ -77,7 +77,7 @@ router.get('/', authMiddleware, branchFilter, async (req: AuthRequest, res) => {
 router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
-    const store = readStore();
+    const store = await readStore();
     const meeting = store.meetings.find((item) => item.id === id);
 
     if (!meeting) {
@@ -120,7 +120,7 @@ router.post('/', authMiddleware, requireRole('party_inspection', 'branch_secreta
       return res.status(400).json({ error: '请选择会议日期' });
     }
 
-    const created = updateStore((store) => {
+    const created = await updateStore((store) => {
       const branchId =
         payload.branch_id && findBranchById(store, payload.branch_id)
           ? payload.branch_id
@@ -181,7 +181,7 @@ router.put('/:id', authMiddleware, requireRole('party_inspection', 'branch_secre
       branch_id: number;
     }>;
 
-    const updated = updateStore((store) => {
+    const updated = await updateStore((store) => {
       const meeting = store.meetings.find((item) => item.id === id);
 
       if (!meeting) {
@@ -229,7 +229,7 @@ router.delete('/:id', authMiddleware, requireRole('party_inspection', 'branch_se
   try {
     const id = Number(req.params.id);
 
-    const deleted = updateStore((store) => {
+    const deleted = await updateStore((store) => {
       const index = store.meetings.findIndex((meeting) => meeting.id === id);
       if (index < 0) {
         return false;

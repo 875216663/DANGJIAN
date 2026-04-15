@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
+import { getDatabasePool, isDatabaseEnabled } from '../config/database';
 
 export interface CommitteeMember {
   position: string;
@@ -123,6 +124,15 @@ export const USER_DIRECTORY: Record<number, { id: number; name: string; role: st
 
 const DATA_DIR = resolve(process.cwd(), 'data');
 const DB_FILE = resolve(DATA_DIR, 'local-db.json');
+const STORE_KEY = 'default';
+const STORE_TABLE = getStoreTableName();
+
+function getStoreTableName() {
+  const candidate = process.env.DB_STORE_TABLE?.trim();
+  return candidate && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(candidate)
+    ? candidate
+    : 'party_app_store';
+}
 
 const DEFAULT_STORE: StoreData = {
   branches: [
@@ -457,21 +467,164 @@ function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export function readStore(): StoreData {
-  ensureDataFile();
-  const content = readFileSync(DB_FILE, 'utf8');
-  return JSON.parse(content) as StoreData;
+function getInitialStoreSeed() {
+  if (!existsSync(DB_FILE)) {
+    return deepClone(DEFAULT_STORE);
+  }
+
+  try {
+    const content = readFileSync(DB_FILE, 'utf8');
+    return normalizeStore(JSON.parse(content) as Partial<StoreData>);
+  } catch (error) {
+    console.error('Failed to read local data seed, falling back to default store:', error);
+    return deepClone(DEFAULT_STORE);
+  }
 }
 
-export function writeStore(data: StoreData) {
+function normalizeStore(value: Partial<StoreData> | null | undefined): StoreData {
+  return {
+    branches: Array.isArray(value?.branches) ? value.branches : deepClone(DEFAULT_STORE.branches),
+    members: Array.isArray(value?.members) ? value.members : deepClone(DEFAULT_STORE.members),
+    activists: Array.isArray(value?.activists) ? value.activists : deepClone(DEFAULT_STORE.activists),
+    meetings: Array.isArray(value?.meetings) ? value.meetings : deepClone(DEFAULT_STORE.meetings),
+    notices: Array.isArray(value?.notices) ? value.notices : deepClone(DEFAULT_STORE.notices),
+    studyFiles: Array.isArray(value?.studyFiles) ? value.studyFiles : deepClone(DEFAULT_STORE.studyFiles),
+  };
+}
+
+let ensureDbStorePromise: Promise<void> | null = null;
+
+async function ensureDatabaseStore() {
+  if (!isDatabaseEnabled()) {
+    return;
+  }
+
+  if (!ensureDbStorePromise) {
+    ensureDbStorePromise = (async () => {
+      const pool = getDatabasePool();
+      if (!pool) {
+        return;
+      }
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${STORE_TABLE} (
+          store_key TEXT PRIMARY KEY,
+          payload JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await pool.query(
+        `
+          INSERT INTO ${STORE_TABLE} (store_key, payload, updated_at)
+          VALUES ($1, $2::jsonb, NOW())
+          ON CONFLICT (store_key) DO NOTHING
+        `,
+        [STORE_KEY, JSON.stringify(getInitialStoreSeed())]
+      );
+    })().catch((error) => {
+      ensureDbStorePromise = null;
+      throw error;
+    });
+  }
+
+  await ensureDbStorePromise;
+}
+
+export async function readStore(): Promise<StoreData> {
+  if (isDatabaseEnabled()) {
+    await ensureDatabaseStore();
+    const pool = getDatabasePool();
+
+    if (!pool) {
+      return normalizeStore(DEFAULT_STORE);
+    }
+
+    const result = await pool.query(
+      `SELECT payload FROM ${STORE_TABLE} WHERE store_key = $1 LIMIT 1`,
+      [STORE_KEY]
+    );
+
+    return normalizeStore((result.rows[0]?.payload ?? DEFAULT_STORE) as Partial<StoreData>);
+  }
+
+  ensureDataFile();
+  const content = readFileSync(DB_FILE, 'utf8');
+  return normalizeStore(JSON.parse(content) as Partial<StoreData>);
+}
+
+export async function writeStore(data: StoreData) {
+  if (isDatabaseEnabled()) {
+    await ensureDatabaseStore();
+    const pool = getDatabasePool();
+
+    if (!pool) {
+      return;
+    }
+
+    await pool.query(
+      `
+        INSERT INTO ${STORE_TABLE} (store_key, payload, updated_at)
+        VALUES ($1, $2::jsonb, NOW())
+        ON CONFLICT (store_key)
+        DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+      `,
+      [STORE_KEY, JSON.stringify(data)]
+    );
+    return;
+  }
+
   ensureDataFile();
   writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-export function updateStore<T>(updater: (data: StoreData) => T): T {
-  const data = readStore();
-  const result = updater(data);
-  writeStore(data);
+export async function updateStore<T>(updater: (data: StoreData) => T | Promise<T>): Promise<T> {
+  if (isDatabaseEnabled()) {
+    await ensureDatabaseStore();
+    const pool = getDatabasePool();
+
+    if (!pool) {
+      const data = await readStore();
+      const result = await updater(data);
+      await writeStore(data);
+      return result;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const current = await client.query(
+        `SELECT payload FROM ${STORE_TABLE} WHERE store_key = $1 FOR UPDATE`,
+        [STORE_KEY]
+      );
+
+      const data = normalizeStore((current.rows[0]?.payload ?? DEFAULT_STORE) as Partial<StoreData>);
+      const result = await updater(data);
+
+      await client.query(
+        `
+          INSERT INTO ${STORE_TABLE} (store_key, payload, updated_at)
+          VALUES ($1, $2::jsonb, NOW())
+          ON CONFLICT (store_key)
+          DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+        `,
+        [STORE_KEY, JSON.stringify(data)]
+      );
+
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  const data = await readStore();
+  const result = await updater(data);
+  await writeStore(data);
   return result;
 }
 

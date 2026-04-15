@@ -53,7 +53,7 @@ router.post('/files', upload.single('file'), async (req, res) => {
     const targetPath = resolve(STUDY_UPLOAD_DIR, storedFileName);
     writeFileSync(targetPath, file.buffer);
 
-    const studyFile = updateStore((store) => {
+    const studyFile = await updateStore((store) => {
       const record = {
         id: Date.now().toString(),
         title: title.trim(),
@@ -89,7 +89,7 @@ router.post('/files', upload.single('file'), async (req, res) => {
 
 router.get('/files', async (req, res) => {
   try {
-    const store = readStore();
+    const store = await readStore();
     res.json({
       files: store.studyFiles.map((file) => ({
         id: file.id,
@@ -111,7 +111,7 @@ router.get('/files', async (req, res) => {
 router.get('/files/:id/download', async (req, res) => {
   try {
     const fileId = req.params.id;
-    const store = readStore();
+    const store = await readStore();
     const file = store.studyFiles.find((item) => item.id === fileId);
 
     if (!file) {
@@ -130,7 +130,7 @@ router.delete('/files/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const deleted = updateStore((store) => {
+    const deleted = await updateStore((store) => {
       const index = store.studyFiles.findIndex((file) => file.id === id);
       if (index < 0) {
         return null;
