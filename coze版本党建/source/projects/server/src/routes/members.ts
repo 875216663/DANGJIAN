@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import * as xlsx from 'xlsx';
 import type { AuthRequest } from '../middleware/auth';
-import { authMiddleware, branchFilter } from '../middleware/auth';
+import { authMiddleware, branchFilter, requireRole } from '../middleware/auth';
 import {
   findBranchByName,
   getNextNumericId,
@@ -133,7 +133,12 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/import', upload.single('file'), authMiddleware, async (req: AuthRequest, res) => {
+router.post(
+  '/import',
+  upload.single('file'),
+  authMiddleware,
+  requireRole('party_committee', 'party_inspection', 'branch_secretary'),
+  async (req: AuthRequest, res) => {
   try {
     const file = req.file;
 
@@ -216,7 +221,11 @@ router.post('/import', upload.single('file'), authMiddleware, async (req: AuthRe
   }
 });
 
-router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
+router.put(
+  '/:id',
+  authMiddleware,
+  requireRole('party_committee', 'party_inspection', 'branch_secretary'),
+  async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
 
@@ -275,7 +284,11 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/', authMiddleware, async (req: AuthRequest, res) => {
+router.post(
+  '/',
+  authMiddleware,
+  requireRole('party_committee', 'party_inspection', 'branch_secretary'),
+  async (req: AuthRequest, res) => {
   try {
     const memberData = req.body as Partial<{
       name: string;
@@ -354,6 +367,49 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Create member error:', error);
     res.status(500).json({ error: '创建失败' });
+  }
+});
+
+router.delete(
+  '/:id',
+  authMiddleware,
+  requireRole('party_committee', 'party_inspection', 'branch_secretary'),
+  async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const deleted = await updateStore((store) => {
+      const index = store.members.findIndex((member) => member.id === id);
+      if (index < 0) {
+        return false;
+      }
+
+      store.members.splice(index, 1);
+
+      store.branches.forEach((branch) => {
+        if (branch.secretary_id === id) {
+          branch.secretary_id = undefined;
+          branch.secretary_name = '';
+          branch.committee_members = branch.committee_members.filter(
+            (item) => item.position !== '书记'
+          );
+        }
+      });
+
+      return true;
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ error: '党员不存在' });
+    }
+
+    res.json({
+      success: true,
+      message: '删除成功',
+    });
+  } catch (error) {
+    console.error('Delete member error:', error);
+    res.status(500).json({ error: '删除党员失败' });
   }
 });
 

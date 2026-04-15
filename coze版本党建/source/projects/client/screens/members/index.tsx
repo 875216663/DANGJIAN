@@ -12,12 +12,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 import { createFormDataFile } from '@/utils';
 
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
 export default function Members() {
   const router = useSafeRouter();
+  const { user } = useAuth();
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -26,6 +28,7 @@ export default function Members() {
   const [importing, setImporting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
   // 加载党员列表
   const loadMembers = useCallback(async () => {
@@ -182,7 +185,13 @@ export default function Members() {
               <FontAwesome6 name="arrow-left" size={24} color="white" />
             </TouchableOpacity>
             <Text className="text-white font-bold text-lg">党员管理</Text>
-            <View className="w-6" />
+            {canManage ? (
+              <TouchableOpacity onPress={() => router.push('/member-edit')}>
+                <FontAwesome6 name="plus" size={22} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <View className="w-6" />
+            )}
           </View>
         </View>
 
@@ -212,13 +221,15 @@ export default function Members() {
         <View className="px-4 py-2 flex-row justify-between items-center">
           <Text className="text-gray-400 text-sm">共 {members.length} 名党员</Text>
           <View className="flex-row space-x-2">
-            <TouchableOpacity
-              onPress={() => setShowImportModal(true)}
-              className="bg-red-900 px-4 py-2 rounded-lg flex-row items-center"
-            >
-              <FontAwesome6 name="file-import" size={16} color="white" />
-              <Text className="text-white text-sm ml-2">导入</Text>
-            </TouchableOpacity>
+            {canManage && (
+              <TouchableOpacity
+                onPress={() => setShowImportModal(true)}
+                className="bg-red-900 px-4 py-2 rounded-lg flex-row items-center"
+              >
+                <FontAwesome6 name="file-import" size={16} color="white" />
+                <Text className="text-white text-sm ml-2">导入</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={handleExport}
               className="bg-gray-700 px-4 py-2 rounded-lg flex-row items-center"
@@ -240,6 +251,14 @@ export default function Members() {
             <View className="py-20 items-center">
               <FontAwesome6 name="users-slash" size={60} color="#374151" />
               <Text className="text-gray-500 mt-4">暂无数据</Text>
+              {canManage && (
+                <TouchableOpacity
+                  onPress={() => router.push('/member-edit')}
+                  className="mt-4 rounded-lg bg-red-900 px-6 py-3"
+                >
+                  <Text className="text-white">新增党员</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             members.map((member, index) => (

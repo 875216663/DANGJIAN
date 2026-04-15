@@ -4,20 +4,24 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
 export default function BranchDetail() {
   const router = useSafeRouter();
+  const { user } = useAuth();
   const { id } = useSafeSearchParams<{ id: string }>();
   const [branch, setBranch] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'info' | 'members'>('info');
+  const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
   useEffect(() => {
     loadBranchDetail();
@@ -44,6 +48,40 @@ export default function BranchDetail() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('确认删除', `确定删除支部“${branch?.name || ''}”吗？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const response = await fetch(`${BACKEND_BASE_URL}/api/v1/branches/${id}`, {
+              method: 'DELETE',
+              headers: { 'x-user-id': '1', 'x-user-role': 'party_committee' },
+            });
+            const payload = await response.json();
+
+            if (!response.ok) {
+              Alert.alert('删除失败', payload.error || '删除支部失败');
+              return;
+            }
+
+            Alert.alert('删除成功', '支部信息已删除', [
+              {
+                text: '确定',
+                onPress: () => router.replace('/branches'),
+              },
+            ]);
+          } catch (error) {
+            console.error('Delete branch error:', error);
+            Alert.alert('删除失败', '网络异常，请稍后重试');
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -157,7 +195,7 @@ export default function BranchDetail() {
                 <View className="space-y-4">
                   <DetailRow label="支部书记" value={branch.secretary_name || '未设置'} />
                   <DetailRow label="成立日期" value={branch.establish_date || '-'} />
-                  <DetailRow label="换届提醒" value={branch['换届提醒日期'] || '-'} />
+                  <DetailRow label="换届提醒" value={branch.renewal_reminder_date || '-'} />
                   <DetailRow label="描述" value={branch.description || '-'} />
                 </View>
               </View>
@@ -197,14 +235,22 @@ export default function BranchDetail() {
         </ScrollView>
 
         {/* 底部操作栏 */}
-        <View className="bg-gray-800 border-t border-gray-700 px-4 py-3">
-          <TouchableOpacity
-            onPress={() => router.push('/branch-edit', { id })}
-            className="bg-red-900 py-3 rounded-lg"
-          >
-            <Text className="text-white text-center font-medium">编辑支部信息</Text>
-          </TouchableOpacity>
-        </View>
+        {canManage && (
+          <View className="bg-gray-800 border-t border-gray-700 px-4 py-3 flex-row">
+            <TouchableOpacity
+              onPress={() => router.push('/branch-edit', { id })}
+              className="mr-3 flex-1 rounded-lg bg-red-900 py-3"
+            >
+              <Text className="text-white text-center font-medium">编辑支部信息</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="flex-1 rounded-lg border border-red-500 bg-red-950/40 py-3"
+            >
+              <Text className="text-center font-medium text-red-300">删除支部</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </Screen>
   );

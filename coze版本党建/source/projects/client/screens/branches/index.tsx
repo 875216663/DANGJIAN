@@ -4,17 +4,22 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
 export default function Branches() {
   const router = useSafeRouter();
+  const { user } = useAuth();
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
   const loadBranches = useCallback(async () => {
     setLoading(true);
@@ -36,6 +41,13 @@ export default function Branches() {
     loadBranches();
   }, [loadBranches]);
 
+  const filteredBranches = branches.filter((branch) =>
+    [branch.name, branch.code, branch.secretary_name]
+      .join(' ')
+      .toLowerCase()
+      .includes(searchKeyword.trim().toLowerCase())
+  );
+
   return (
     <Screen>
       <View className="flex-1 bg-gray-900">
@@ -46,9 +58,26 @@ export default function Branches() {
               <FontAwesome6 name="arrow-left" size={24} color="white" />
             </TouchableOpacity>
             <Text className="text-white font-bold text-lg">党支部管理</Text>
-            <TouchableOpacity onPress={() => router.push('/branch-edit')}>
-              <FontAwesome6 name="plus" size={24} color="white" />
-            </TouchableOpacity>
+            {canManage ? (
+              <TouchableOpacity onPress={() => router.push('/branch-edit')}>
+                <FontAwesome6 name="plus" size={24} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <View className="w-6" />
+            )}
+          </View>
+        </View>
+
+        <View className="bg-gray-800 px-4 py-3">
+          <View className="flex-row items-center rounded-2xl bg-gray-700 px-3 py-3">
+            <FontAwesome6 name="magnifying-glass" size={16} color="#9CA3AF" />
+            <TextInput
+              className="ml-2 flex-1 text-white"
+              placeholder="搜索支部名称、代码、书记"
+              placeholderTextColor="#6B7280"
+              value={searchKeyword}
+              onChangeText={setSearchKeyword}
+            />
           </View>
         </View>
 
@@ -56,7 +85,7 @@ export default function Branches() {
         <View className="px-4 py-3">
           <View className="flex-row items-center space-x-2">
             <FontAwesome6 name="building-columns" size={20} color="#DC2626" />
-            <Text className="text-gray-400 text-sm">共 {branches.length} 个支部</Text>
+            <Text className="text-gray-400 text-sm">共 {filteredBranches.length} 个支部</Text>
           </View>
         </View>
 
@@ -67,13 +96,13 @@ export default function Branches() {
               <FontAwesome6 name="spinner" size={40} color="#DC2626" />
               <Text className="text-gray-500 mt-2">加载中...</Text>
             </View>
-          ) : branches.length === 0 ? (
+          ) : filteredBranches.length === 0 ? (
             <View className="py-20 items-center">
               <FontAwesome6 name="building" size={60} color="#374151" />
-              <Text className="text-gray-500 mt-4">暂无支部数据</Text>
+              <Text className="text-gray-500 mt-4">暂无匹配的支部数据</Text>
             </View>
           ) : (
-            branches.map((branch, index) => (
+            filteredBranches.map((branch) => (
               <TouchableOpacity
                 key={branch.id}
                 className="bg-gray-800 rounded-xl p-4 mb-3 border border-gray-700"
@@ -107,19 +136,10 @@ export default function Branches() {
                   </View>
                   <View className="flex-1">
                     <View className="flex-row items-center space-x-2">
-                      <FontAwesome6 name="star" size={14} color="#EC4899" />
-                      <Text className="text-pink-500 font-bold text-xl">{branch.activist_count || 0}</Text>
+                      <FontAwesome6 name="user-tie" size={14} color="#EC4899" />
+                      <Text className="text-pink-500 font-bold text-xl">{branch.secretary_name ? 1 : 0}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => router.push('/branch-activists', { id: branch.id, branchName: branch.name })}>
-                      <Text className="text-gray-500 text-xs mt-1">积极分子</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View className="flex-1">
-                    <View className="flex-row items-center space-x-2">
-                      <FontAwesome6 name="user-plus" size={14} color="#8B5CF6" />
-                      <Text className="text-purple-500 font-bold text-xl">{branch.applicant_count || 0}</Text>
-                    </View>
-                    <Text className="text-gray-500 text-xs mt-1">申请人数</Text>
+                    <Text className="text-gray-500 text-xs mt-1">书记配置</Text>
                   </View>
                 </View>
 

@@ -4,18 +4,22 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL || 'http://localhost:9091';
 
 export default function MemberDetail() {
   const router = useSafeRouter();
+  const { user } = useAuth();
   const { id } = useSafeSearchParams<{ id: string }>();
   const [member, setMember] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
   useEffect(() => {
     loadMemberDetail();
@@ -33,6 +37,40 @@ export default function MemberDetail() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('确认删除', `确定删除党员“${member?.name || ''}”吗？删除后不可恢复。`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const response = await fetch(`${BACKEND_BASE_URL}/api/v1/members/${id}`, {
+              method: 'DELETE',
+              headers: { 'x-user-id': '1', 'x-user-role': 'party_committee' },
+            });
+
+            const payload = await response.json();
+            if (!response.ok) {
+              Alert.alert('删除失败', payload.error || '删除党员失败');
+              return;
+            }
+
+            Alert.alert('删除成功', '党员信息已删除', [
+              {
+                text: '确定',
+                onPress: () => router.replace('/members'),
+              },
+            ]);
+          } catch (error) {
+            console.error('Delete member error:', error);
+            Alert.alert('删除失败', '网络异常，请稍后再试');
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -109,13 +147,12 @@ export default function MemberDetail() {
             <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
               <Text className="text-white font-bold text-lg mb-4">详细信息</Text>
 
-              <View className="space-y-4">
-                <DetailRow label="性别" value={member.gender || '-'} />
-                <DetailRow label="出生日期" value={member.birthday || '-'} />
-                <DetailRow label="身份证号" value="**********" />
-                <DetailRow label="联系电话" value={member.phone || '-'} />
-                <DetailRow label="邮箱" value={member.email || '-'} />
-              </View>
+                <View className="space-y-4">
+                  <DetailRow label="性别" value={member.gender || '-'} />
+                  <DetailRow label="出生日期" value={member.birthday || '-'} />
+                  <DetailRow label="联系电话" value={member.phone || '-'} />
+                  <DetailRow label="邮箱" value={member.email || '-'} />
+                </View>
             </View>
 
             {/* 党籍信息 */}
@@ -145,14 +182,22 @@ export default function MemberDetail() {
         </ScrollView>
 
         {/* 底部操作栏 */}
-        <View className="bg-gray-800 border-t border-gray-700 px-4 py-3">
-          <TouchableOpacity
-            onPress={() => router.push('/member-edit', { id })}
-            className="bg-red-900 py-3 rounded-lg"
-          >
-            <Text className="text-white text-center font-medium">编辑信息</Text>
-          </TouchableOpacity>
-        </View>
+        {canManage && (
+          <View className="bg-gray-800 border-t border-gray-700 px-4 py-3 flex-row">
+            <TouchableOpacity
+              onPress={() => router.push('/member-edit', { id })}
+              className="mr-3 flex-1 rounded-lg bg-red-900 py-3"
+            >
+              <Text className="text-white text-center font-medium">编辑信息</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="flex-1 rounded-lg border border-red-500 bg-red-950/40 py-3"
+            >
+              <Text className="text-center font-medium text-red-300">删除党员</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </Screen>
   );

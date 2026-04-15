@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { AuthRequest } from '../middleware/auth';
-import { authMiddleware, branchFilter } from '../middleware/auth';
+import { authMiddleware, branchFilter, requireRole } from '../middleware/auth';
 import {
   findBranchById,
   getNextNumericId,
@@ -206,7 +206,11 @@ router.delete('/:id/activists/:activistId', authMiddleware, async (req: AuthRequ
   }
 });
 
-router.post('/', authMiddleware, async (req: AuthRequest, res) => {
+router.post(
+  '/',
+  authMiddleware,
+  requireRole('party_committee', 'party_inspection', 'branch_secretary'),
+  async (req: AuthRequest, res) => {
   try {
     const { name, code, description, establish_date, secretary_id, secretary_name, status } = req.body as Record<string, string>;
 
@@ -249,7 +253,11 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
+router.put(
+  '/:id',
+  authMiddleware,
+  requireRole('party_committee', 'party_inspection', 'branch_secretary'),
+  async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
     const { name, code, description, establish_date, secretary_id, secretary_name, status } = req.body as Record<string, string>;
@@ -298,7 +306,11 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
+router.delete(
+  '/:id',
+  authMiddleware,
+  requireRole('party_committee', 'party_inspection', 'branch_secretary'),
+  async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
 
