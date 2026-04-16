@@ -50,6 +50,8 @@ Railway 项目建议：
 - `DB_SSL=false` 或留空（推荐 Neon 仅使用 `DATABASE_URL`）
 - `DB_SSL_REJECT_UNAUTHORIZED=false`
 - `PORT=5000`
+- `JWT_SECRET=请设置至少16位的随机密钥`
+- `CORS_ORIGIN=https://你的前端域名`
 
 ## 数据库
 
@@ -67,3 +69,9 @@ Neon 推荐直接使用标准连接串：
 
 - `database` 代表已成功切换到数据库
 - `local-file` 代表仍在使用本地文件
+
+## 生产环境建议
+
+- Railway 部署时不要继续使用默认 `JWT_SECRET`
+- `CORS_ORIGIN` 建议精确填写 Vercel 正式域名，而不是 `*`
+- 若更换前端域名，记得同步更新 `EXPO_PUBLIC_BACKEND_BASE_URL` 与 `CORS_ORIGIN`

@@ -1,15 +1,13 @@
-import 'dotenv/config';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
+import { env } from './env';
+import { logger } from '../utils/logger';
 
-function parsePort(value?: string) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5432;
-}
+export type DatabaseExecutor = Pool | PoolClient;
 
 export function isDatabaseEnabled() {
   return Boolean(
-    process.env.DATABASE_URL ||
-      (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER)
+    env.DATABASE_URL ||
+      (env.DB_HOST && env.DB_NAME && env.DB_USER)
   );
 }
 
@@ -24,41 +22,50 @@ export function getDatabasePool() {
     return pool;
   }
 
-  pool = process.env.DATABASE_URL
+  pool = env.DATABASE_URL
     ? new Pool({
-        connectionString: process.env.DATABASE_URL,
-        max: 5,
+        connectionString: env.DATABASE_URL,
+        max: env.DB_POOL_MAX,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 20000,
+        connectionTimeoutMillis: 15000,
         keepAlive: true,
         ssl:
-          process.env.DB_SSL === 'false'
+          env.DB_SSL === 'false'
             ? false
-            : { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' },
+            : { rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED === 'true' },
       })
     : new Pool({
-        host: process.env.DB_HOST,
-        port: parsePort(process.env.DB_PORT),
-        database: process.env.DB_NAME,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD || '',
-        max: 5,
+        host: env.DB_HOST,
+        port: env.DB_PORT,
+        database: env.DB_NAME,
+        user: env.DB_USER,
+        password: env.DB_PASSWORD || '',
+        max: env.DB_POOL_MAX,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 20000,
+        connectionTimeoutMillis: 15000,
         keepAlive: true,
         ssl:
-          process.env.DB_SSL === 'true'
-            ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+          env.DB_SSL === 'true'
+            ? { rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED === 'true' }
             : false,
       });
 
   pool.on('connect', () => {
-    console.log('Database connected successfully');
+    logger.info('Database connection established');
   });
 
-  pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
+  pool.on('error', (error) => {
+    logger.error('Unexpected database pool error', error);
   });
 
   return pool;
+}
+
+export async function closeDatabasePool() {
+  if (!pool) {
+    return;
+  }
+
+  await pool.end();
+  pool = null;
 }

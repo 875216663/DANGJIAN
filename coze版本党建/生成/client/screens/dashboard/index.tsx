@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApiUrl } from '@/utils/api';
+import { requestJson } from '@/utils/api';
 
 const PLANNED_FEATURES = [
   { id: 'meetings', name: '三会一课', icon: 'calendar-check', color: '#F59E0B', route: '/meetings' },
@@ -29,32 +29,53 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    memberCount: 0,
+    branchCount: 0,
+    activeCount: 0,
+    probationaryCount: 0,
+    branchWithSecretaryCount: 0,
+  });
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [membersRes, branchesRes] = await Promise.all([
-        fetch(getApiUrl('/api/v1/members?page=1&limit=100')),
-        fetch(getApiUrl('/api/v1/branches')),
+      const [summaryRes, membersRes, branchesRes] = await Promise.all([
+        requestJson<{
+          memberCount: number;
+          branchCount: number;
+          activeCount: number;
+          probationaryCount: number;
+          branchWithSecretaryCount: number;
+        }>('/api/v1/dashboard'),
+        requestJson<any[]>('/api/v1/members?page=1&limit=4'),
+        requestJson<any[]>('/api/v1/branches'),
       ]);
 
-      const membersData = await membersRes.json();
-      const branchesData = await branchesRes.json();
-
-      setMembers(membersData.data || []);
-      setBranches(branchesData || []);
+      setStats({
+        memberCount: summaryRes.data.memberCount || 0,
+        branchCount: summaryRes.data.branchCount || 0,
+        activeCount: summaryRes.data.activeCount || 0,
+        probationaryCount: summaryRes.data.probationaryCount || 0,
+        branchWithSecretaryCount: summaryRes.data.branchWithSecretaryCount || 0,
+      });
+      setMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
+      setBranches(Array.isArray(branchesRes.data) ? branchesRes.data : []);
     } catch (error) {
       console.error('Load dashboard data error:', error);
+      setStats({
+        memberCount: 0,
+        branchCount: 0,
+        activeCount: 0,
+        probationaryCount: 0,
+        branchWithSecretaryCount: 0,
+      });
       setMembers([]);
       setBranches([]);
     } finally {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -67,20 +88,6 @@ export default function Dashboard() {
     await loadData();
     setRefreshing(false);
   }, [loadData]);
-
-  const stats = useMemo(() => {
-    const probationaryCount = members.filter((item) => item.status === 'probationary').length;
-    const activeCount = members.filter((item) => item.status === 'active').length;
-    const branchWithSecretaryCount = branches.filter((item) => item.secretary_name).length;
-
-    return {
-      memberCount: members.length,
-      branchCount: branches.length,
-      probationaryCount,
-      activeCount,
-      branchWithSecretaryCount,
-    };
-  }, [branches, members]);
 
   const featuredMembers = members.slice(0, 4);
   const featuredBranches = branches.slice(0, 4);

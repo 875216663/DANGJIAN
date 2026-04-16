@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { type ReactNode } from 'react';
 import { Platform, Text, TouchableOpacity, View } from 'react-native';
 
@@ -10,7 +11,7 @@ interface AppErrorBoundaryState {
   errorMessage: string;
 }
 
-const AUTH_STORAGE_KEY = 'dangjian-auth-user-id-v2';
+const RESET_KEYS = ['dangjian-auth-token-v3', 'dangjian-auth-user-id-v2'];
 
 class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
   constructor(props: AppErrorBoundaryProps) {
@@ -38,9 +39,9 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
     }
   };
 
-  private handleReset = () => {
+  private handleReset = async () => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      await Promise.all(RESET_KEYS.map((key) => AsyncStorage.removeItem(key)));
       window.location.reload();
     }
   };

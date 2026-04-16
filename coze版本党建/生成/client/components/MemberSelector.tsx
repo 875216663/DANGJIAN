@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { getApiUrl } from '@/utils/api';
+import { requestJson } from '@/utils/api';
 
 interface Member {
   id: number;
@@ -73,14 +73,13 @@ export default function MemberSelector({
   const fetchMembers = async () => {
     setLoading(true);
     try {
-      const url = branchId
-        ? getApiUrl(`/api/v1/branches/${branchId}/members`)
-        : getApiUrl('/api/v1/members');
-      const response = await fetch(url);
-      const data = await response.json();
-      setMembers(data.data || data || []);
+      const { data } = await requestJson<Member[]>(
+        branchId ? `/api/v1/branches/${branchId}/members` : '/api/v1/members?page=1&limit=1000'
+      );
+      setMembers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Fetch members error:', error);
+      setMembers([]);
     } finally {
       setLoading(false);
     }

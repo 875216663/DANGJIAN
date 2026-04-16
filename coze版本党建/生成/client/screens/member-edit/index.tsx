@@ -11,7 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
-import { getApiUrl } from '@/utils/api';
+import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
 
 export default function MemberEdit() {
   const router = useSafeRouter();
@@ -50,8 +50,7 @@ export default function MemberEdit() {
 
   const loadBranches = async () => {
     try {
-      const response = await fetch(getApiUrl('/api/v1/branches'));
-      const data = await response.json();
+      const { data } = await requestJson<any[]>('/api/v1/branches');
       setBranches(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Load branches error:', error);
@@ -60,11 +59,29 @@ export default function MemberEdit() {
   };
 
   const loadMemberDetail = async () => {
+    if (!id) {
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl(`/api/v1/members/${id}`));
-      const data = await response.json();
-      setMember(data);
+      const { data } = await requestJson<any>(`/api/v1/members/${id}`);
+      setMember({
+        name: data.name || '',
+        gender: data.gender || '男',
+        birthday: data.birthday || '',
+        department: data.department || '',
+        position: data.position || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        political_status: data.political_status || '中共党员',
+        join_date: data.join_date || '',
+        regular_date: data.regular_date || '',
+        branch_name: data.branch_name || '',
+        last_fee_month: data.last_fee_month || '',
+        status: data.status || 'active',
+        remarks: data.remarks || '',
+      });
     } catch (error) {
       console.error('Load member error:', error);
       Alert.alert('错误', '加载党员信息失败');
@@ -81,6 +98,11 @@ export default function MemberEdit() {
 
     if (!member.join_date) {
       Alert.alert('提示', '请选择入党日期');
+      return;
+    }
+
+    if (!member.branch_name.trim()) {
+      Alert.alert('提示', '请选择所属支部');
       return;
     }
 
@@ -106,8 +128,8 @@ export default function MemberEdit() {
           },
         ]);
       } else {
-        const error = await response.json();
-        Alert.alert('错误', error.error || '保存失败');
+        const payload = await response.json().catch(() => null);
+        Alert.alert('错误', getApiMessage(payload, '保存失败'));
       }
     } catch (error) {
       console.error('Save error:', error);
@@ -250,13 +272,13 @@ export default function MemberEdit() {
                 </TouchableOpacity>
 
                 <FormItem
-                  label="所属支部"
+                  label="所属支部 *"
                   value={member.branch_name}
                   onChangeText={(text) => setMember({ ...member, branch_name: text })}
-                  placeholder="请输入所属支部，可手动新增"
+                  placeholder="请输入已有支部名称或点击下方快捷选择"
                 />
                 <Text className="text-xs leading-5 text-gray-500">
-                  可以直接手动填写支部名称；如果填写的是新支部名称，系统会在保存时自动创建对应支部。
+                  为避免党员信息落入错误支部，手工维护时请优先选择已有支部；如需新增支部，请先到“党支部管理”中创建。
                 </Text>
                 {branches.length > 0 && (
                   <View className="flex-row flex-wrap gap-2">

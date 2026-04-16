@@ -1,6 +1,11 @@
-import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { getAllowedOrigins } from './config/env';
+import { errorHandler } from './middlewares/error.middleware';
+import { notFoundHandler } from './middlewares/not-found.middleware';
+import { requestLogger } from './middlewares/request-logger.middleware';
+import { auditMiddleware } from './middlewares/audit.middleware';
+import { env } from './config/env';
 import authRouter from './routes/auth';
 import dashboardRouter from './routes/dashboard';
 import membersRouter from './routes/members';
@@ -8,30 +13,23 @@ import branchesRouter from './routes/branches';
 import noticesRouter from './routes/notices';
 import meetingsRouter from './routes/meetings';
 import studyRouter from './routes/study';
-import { auditLog } from './middleware/audit';
-import { isDatabaseEnabled } from './config/database';
+import healthRouter from './routes/health';
+import { logger } from './utils/logger';
 
 const app = express();
-const port = process.env.PORT || 9091;
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(
+  cors({
+    origin: getAllowedOrigins(),
+    credentials: false,
+  })
+);
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ limit: '20mb', extended: true }));
+app.use(requestLogger);
+app.use(auditMiddleware);
 
-// 审计日志中间件（所有API请求）
-app.use(auditLog);
-
-// 健康检查
-app.get('/api/v1/health', (req, res) => {
-  console.log('Health check success');
-  res.status(200).json({
-    status: 'ok',
-    storage: isDatabaseEnabled() ? 'database' : 'local-file',
-  });
-});
-
-// API 路由
+app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/members', membersRouter);
@@ -40,12 +38,9 @@ app.use('/api/v1/notices', noticesRouter);
 app.use('/api/v1/meetings', meetingsRouter);
 app.use('/api/v1/study', studyRouter);
 
-// 错误处理
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: '服务器内部错误' });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}/`);
+app.listen(env.PORT, () => {
+  logger.info(`Server listening at http://localhost:${env.PORT}/`);
 });

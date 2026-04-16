@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApiUrl } from '@/utils/api';
+import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
 
 export default function MemberDetail() {
   const router = useSafeRouter();
@@ -21,10 +21,6 @@ export default function MemberDetail() {
   const [loading, setLoading] = useState(true);
   const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
-  useEffect(() => {
-    loadMemberDetail();
-  }, [id]);
-
   useFocusEffect(
     React.useCallback(() => {
       loadMemberDetail();
@@ -32,18 +28,29 @@ export default function MemberDetail() {
   );
 
   const loadMemberDetail = async () => {
+    if (!id) {
+      setMember(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch(getApiUrl(`/api/v1/members/${id}`));
-      const data = await response.json();
+      setLoading(true);
+      const { data } = await requestJson<any>(`/api/v1/members/${id}`);
       setMember(data);
     } catch (error) {
       console.error('Load member detail error:', error);
+      setMember(null);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = () => {
+    if (!id) {
+      return;
+    }
+
     Alert.alert('确认删除', `确定删除党员“${member?.name || ''}”吗？删除后不可恢复。`, [
       { text: '取消', style: 'cancel' },
       {
@@ -54,10 +61,9 @@ export default function MemberDetail() {
             const response = await fetch(getApiUrl(`/api/v1/members/${id}`), {
               method: 'DELETE',
             });
-
-            const payload = await response.json();
+            const payload = await response.json().catch(() => null);
             if (!response.ok) {
-              Alert.alert('删除失败', payload.error || '删除党员失败');
+              Alert.alert('删除失败', getApiMessage(payload, '删除党员失败'));
               return;
             }
 

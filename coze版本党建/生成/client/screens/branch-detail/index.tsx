@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApiUrl } from '@/utils/api';
+import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
 
 export default function BranchDetail() {
   const router = useSafeRouter();
@@ -23,10 +23,6 @@ export default function BranchDetail() {
   const [activeTab, setActiveTab] = useState<'info' | 'members'>('info');
   const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
-  useEffect(() => {
-    loadBranchDetail();
-  }, [id]);
-
   useFocusEffect(
     React.useCallback(() => {
       loadBranchDetail();
@@ -34,25 +30,36 @@ export default function BranchDetail() {
   );
 
   const loadBranchDetail = async () => {
+    if (!id) {
+      setBranch(null);
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
+
     try {
+      setLoading(true);
       const [branchRes, membersRes] = await Promise.all([
-        fetch(getApiUrl(`/api/v1/branches/${id}`)),
-        fetch(getApiUrl(`/api/v1/branches/${id}/members`)),
+        requestJson<any>(`/api/v1/branches/${id}`),
+        requestJson<any[]>(`/api/v1/branches/${id}/members`),
       ]);
 
-      const branchData = await branchRes.json();
-      const membersData = await membersRes.json();
-
-      setBranch(branchData);
-      setMembers(membersData || []);
+      setBranch(branchRes.data);
+      setMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
     } catch (error) {
       console.error('Load branch detail error:', error);
+      setBranch(null);
+      setMembers([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = () => {
+    if (!id) {
+      return;
+    }
+
     Alert.alert('确认删除', `确定删除支部“${branch?.name || ''}”吗？`, [
       { text: '取消', style: 'cancel' },
       {
@@ -63,10 +70,10 @@ export default function BranchDetail() {
             const response = await fetch(getApiUrl(`/api/v1/branches/${id}`), {
               method: 'DELETE',
             });
-            const payload = await response.json();
+            const payload = await response.json().catch(() => null);
 
             if (!response.ok) {
-              Alert.alert('删除失败', payload.error || '删除支部失败');
+              Alert.alert('删除失败', getApiMessage(payload, '删除支部失败'));
               return;
             }
 

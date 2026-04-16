@@ -21,9 +21,12 @@ import {
   getApiUrl,
   getBackendBaseUrl,
   getRequestUrl,
+  requestJson,
   shouldAttachAuthHeaders,
+  type AuthSessionPayload,
   type AuthSessionUser,
   type StorageMode,
+  unwrapApiData,
 } from '@/utils/api';
 
 interface AuthContextType {
@@ -41,13 +44,14 @@ interface AuthContextType {
   updateUser: (userData: Partial<AuthSessionUser>) => void;
 }
 
-const AUTH_STORAGE_KEY = 'dangjian-auth-user-id-v2';
+const AUTH_TOKEN_KEY = 'dangjian-auth-token-v3';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthSessionUser | null>(null);
   const [users, setUsers] = useState<AuthSessionUser[]>([]);
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
+  const [token, setToken] = useState<string | null>(null);
   const [storageMode, setStorageMode] = useState<StorageMode>('unknown');
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState('');
@@ -58,56 +62,61 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const backendBaseUrl = useMemo(() => getBackendBaseUrl(), []);
 
-  const setActiveUserById = useCallback(async (nextUsers: AuthSessionUser[], userId?: number) => {
-    const fallbackUser = nextUsers[0] || null;
-    const matchedUser = userId
-      ? nextUsers.find((item) => item.id === userId) || fallbackUser
-      : fallbackUser;
-
-    setUser(matchedUser);
-
-    if (matchedUser) {
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, String(matchedUser.id));
-    } else {
-      await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-    }
-  }, []);
-
   const refreshSession = useCallback(async () => {
     setIsLoading(true);
+
     try {
-      const [usersRes, accountsRes, healthRes, storedUserId] = await Promise.all([
-        originalFetchRef.current(getApiUrl('/api/v1/auth/users')),
-        originalFetchRef.current(getApiUrl('/api/v1/auth/accounts')),
-        originalFetchRef.current(getApiUrl('/api/v1/health')),
-        AsyncStorage.getItem(AUTH_STORAGE_KEY),
+      const [usersResult, accountsResult, healthResult, storedToken] = await Promise.all([
+        requestJson<AuthSessionUser[]>('/api/v1/auth/users'),
+        requestJson<DemoAccount[]>('/api/v1/auth/accounts'),
+        requestJson<{ status: string; storage: StorageMode }>('/api/v1/health'),
+        AsyncStorage.getItem(AUTH_TOKEN_KEY),
       ]);
 
-      const usersPayload = usersRes.ok ? await usersRes.json() : { data: [] };
-      const accountsPayload = accountsRes.ok ? await accountsRes.json() : { data: [] };
-      const healthPayload = healthRes.ok ? await healthRes.json() : { storage: 'unknown' };
-      const nextUsers = Array.isArray(usersPayload.data) ? usersPayload.data : [];
-      const nextAccounts = Array.isArray(accountsPayload.data) ? accountsPayload.data : [];
+      setUsers(usersResult.data);
+      setAccounts(accountsResult.data);
+      setStorageMode(
+        healthResult.data.storage ||
+        (healthResult.payload && typeof healthResult.payload === 'object' && 'storage' in (healthResult.payload as Record<string, unknown>)
+          ? ((healthResult.payload as Record<string, unknown>).storage as StorageMode)
+          : 'unknown')
+      );
 
-      setUsers(nextUsers);
-      setAccounts(nextAccounts);
-      setStorageMode(healthPayload.storage || usersPayload.storage || 'unknown');
-
-      if (storedUserId) {
-        await setActiveUserById(nextUsers, Number.parseInt(storedUserId, 10));
-      } else {
+      if (!storedToken) {
+        setToken(null);
         setUser(null);
+        return;
       }
+
+      const sessionResponse = await originalFetchRef.current(getApiUrl('/api/v1/auth/session'), {
+        headers: {
+          Authorization: `Bearer ${storedToken}`,
+        },
+      });
+      const sessionPayload = await sessionResponse.json().catch(() => null);
+
+      if (!sessionResponse.ok) {
+        await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+        setToken(null);
+        setUser(null);
+        return;
+      }
+
+      const session = unwrapApiData<{ user: AuthSessionUser; storage: StorageMode }>(sessionPayload);
+      setToken(storedToken);
+      setUser(session.user);
+      setStorageMode(session.storage || healthResult.data.storage || 'unknown');
     } catch (error) {
       console.error('Bootstrap auth session error:', error);
       setUsers([]);
       setAccounts([]);
+      setToken(null);
       setUser(null);
       setStorageMode('unknown');
     } finally {
       setIsLoading(false);
     }
-  }, [setActiveUserById]);
+  }, []);
 
   useEffect(() => {
     refreshSession();
@@ -117,15 +126,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const originalFetch = originalFetchRef.current;
 
     globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (!shouldAttachAuthHeaders(input) || !user) {
+      if (!shouldAttachAuthHeaders(input) || !token) {
         return originalFetch(input, init);
       }
 
-      const inputHeaders =
+      const requestHeaders =
         typeof Request !== 'undefined' && input instanceof Request
           ? input.headers
           : undefined;
-      const headers = new Headers(inputHeaders);
+      const headers = new Headers(requestHeaders);
 
       if (init?.headers) {
         new Headers(init.headers).forEach((value, key) => {
@@ -133,14 +142,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       }
 
-      headers.set('x-user-id', String(user.id));
-      headers.set('x-user-role', user.role);
-
-      if (user.branch_id) {
-        headers.set('x-user-branch-id', String(user.branch_id));
-      } else {
-        headers.delete('x-user-branch-id');
-      }
+      headers.set('Authorization', `Bearer ${token}`);
 
       return originalFetch(input, {
         ...init,
@@ -151,13 +153,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       globalThis.fetch = originalFetch;
     };
-  }, [user]);
+  }, [token]);
 
   const login = useCallback(async (nextUsername: string, nextPassword: string) => {
     setLoginPending(true);
     setLoginError('');
+
     try {
-      const response = await originalFetchRef.current(getApiUrl('/api/v1/auth/login'), {
+      const { data } = await requestJson<AuthSessionPayload>('/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,31 +171,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }),
       });
 
-      const payload = await response.json();
-
-      if (!response.ok) {
-        setLoginError(payload.error || '登录失败');
-        return { ok: false, error: payload.error || '登录失败' };
-      }
-
-      setUser(payload.user);
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, String(payload.user.id));
+      setUser(data.user);
+      setToken(data.token);
+      setStorageMode(data.storage || 'unknown');
+      await AsyncStorage.setItem(AUTH_TOKEN_KEY, data.token);
       setUsername('');
       setPassword('');
-      setStorageMode(payload.storage || storageMode);
+
       return { ok: true };
     } catch (error) {
+      const message = error instanceof Error ? error.message : '登录失败，请稍后重试';
       console.error('Login error:', error);
-      const errorMessage = '登录失败，请稍后重试';
-      setLoginError(errorMessage);
-      return { ok: false, error: errorMessage };
+      setLoginError(message);
+      return { ok: false, error: message };
     } finally {
       setLoginPending(false);
     }
-  }, [storageMode]);
+  }, []);
 
   const logout = useCallback(async () => {
-    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+    setToken(null);
     setUser(null);
   }, []);
 
@@ -207,10 +206,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user,
     users,
     accounts,
-    token: user ? String(user.id) : null,
+    token,
     backendBaseUrl,
     storageMode,
-    isAuthenticated: Boolean(user),
+    isAuthenticated: Boolean(user && token),
     isLoading,
     login,
     logout,
@@ -230,7 +229,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     );
   }
 
-  if (!user) {
+  if (!user || !token) {
     return (
       <AuthContext.Provider value={value}>
         <View className="flex-1 bg-gray-950 px-5 py-8">

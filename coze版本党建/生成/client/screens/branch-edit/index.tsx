@@ -11,7 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
-import { getApiUrl } from '@/utils/api';
+import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
 
 export default function BranchEdit() {
   const router = useSafeRouter();
@@ -39,10 +39,13 @@ export default function BranchEdit() {
   }, [id]);
 
   const loadBranchDetail = async () => {
+    if (!id) {
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl(`/api/v1/branches/${id}`));
-      const data = await response.json();
+      const { data } = await requestJson<any>(`/api/v1/branches/${id}`);
       setBranch({
         name: data.name || '',
         code: data.code || '',
@@ -93,8 +96,8 @@ export default function BranchEdit() {
           },
         ]);
       } else {
-        const error = await response.json();
-        Alert.alert('错误', error.error || '保存失败');
+        const payload = await response.json().catch(() => null);
+        Alert.alert('错误', getApiMessage(payload, '保存失败'));
       }
     } catch (error) {
       console.error('Save error:', error);

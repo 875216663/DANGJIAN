@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,13 @@ import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { createFormDataFile } from '@/utils';
-import { getApiUrl } from '@/utils/api';
+import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
 
 export default function Members() {
   const router = useSafeRouter();
   const { user } = useAuth();
   const [members, setMembers] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -36,25 +37,24 @@ export default function Members() {
     try {
       const params = new URLSearchParams({
         page: '1',
-        limit: '50',
+        limit: '1000',
         ...(searchKeyword && { search: searchKeyword }),
         ...(statusFilter && { status: statusFilter }),
       });
 
-      const response = await fetch(getApiUrl(`/api/v1/members?${params}`));
-
-      const data = await response.json();
-      setMembers(data.data || []);
+      const { data, meta } = await requestJson<any[]>(`/api/v1/members?${params.toString()}`);
+      setMembers(Array.isArray(data) ? data : []);
+      setTotalCount(
+        typeof meta?.total === 'number' ? meta.total : Array.isArray(data) ? data.length : 0
+      );
     } catch (error) {
       console.error('Load members error:', error);
+      setMembers([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   }, [searchKeyword, statusFilter]);
-
-  useEffect(() => {
-    loadMembers();
-  }, [loadMembers]);
 
   useFocusEffect(
     useCallback(() => {
@@ -70,7 +70,11 @@ export default function Members() {
       if (response.ok) {
         await response.blob();
         Alert.alert('成功', '导出成功');
+        return;
       }
+
+      const maybePayload = await response.json().catch(() => null);
+      Alert.alert('错误', getApiMessage(maybePayload, '导出失败'));
     } catch (error) {
       console.error('Export error:', error);
       Alert.alert('错误', '导出失败');
@@ -122,16 +126,15 @@ export default function Members() {
         method: 'POST',
         body: formData,
       });
+      const payload = await response.json().catch(() => null);
 
       if (response.ok) {
-        const data = await response.json();
-        Alert.alert('成功', data.message || '导入成功');
+        Alert.alert('成功', getApiMessage(payload, '导入成功'));
         setShowImportModal(false);
         setSelectedFile(null);
         loadMembers();
       } else {
-        const error = await response.json();
-        Alert.alert('错误', error.error || '导入失败');
+        Alert.alert('错误', getApiMessage(payload, '导入失败'));
       }
     } catch (error) {
       console.error('Import error:', error);
@@ -217,7 +220,7 @@ export default function Members() {
 
         {/* 操作栏 */}
         <View className="px-4 py-2 flex-row justify-between items-center">
-          <Text className="text-gray-400 text-sm">共 {members.length} 名党员</Text>
+          <Text className="text-gray-400 text-sm">共 {totalCount} 名党员</Text>
           <View className="flex-row space-x-2">
             {canManage && (
               <TouchableOpacity

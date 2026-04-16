@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApiUrl } from '@/utils/api';
+import { requestJson } from '@/utils/api';
 
 export default function Branches() {
   const router = useSafeRouter();
@@ -24,20 +24,15 @@ export default function Branches() {
   const loadBranches = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(getApiUrl('/api/v1/branches'));
-
-      const data = await response.json();
-      setBranches(data || []);
+      const { data } = await requestJson<any[]>('/api/v1/branches');
+      setBranches(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Load branches error:', error);
+      setBranches([]);
     } finally {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    loadBranches();
-  }, [loadBranches]);
 
   useFocusEffect(
     useCallback(() => {
