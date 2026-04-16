@@ -8,6 +8,7 @@ import {
 import type { CurrentUserContext } from '../middlewares/auth.middleware';
 import { resolveBranchScope } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/app-error';
+import { canViewAllData } from '../utils/rbac';
 import { buildPaginationMeta, requireEntity } from './store-helper.service';
 
 interface MeetingListQuery {
@@ -96,8 +97,7 @@ export async function getMeetingById(id: number, currentUser: CurrentUserContext
   const scopedBranchId = resolveBranchScope(currentUser, undefined);
   if (
     scopedBranchId &&
-    currentUser.role !== 'party_committee' &&
-    currentUser.role !== 'party_inspection' &&
+    !canViewAllData(currentUser.role) &&
     meeting.branch_id !== scopedBranchId
   ) {
     throw new AppError(403, '无权查看其他支部会议');

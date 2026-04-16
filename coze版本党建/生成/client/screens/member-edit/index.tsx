@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-} from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
-import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
+import { requestJson } from '@/utils/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { canCreateMember, isBranchSecretary } from '@/utils/rbac';
 
 export default function MemberEdit() {
   const router = useSafeRouter();
+  const { user } = useAuth();
   const { id } = useSafeSearchParams<{ id: string }>();
-  const isEdit = !!id;
-
+  const isEdit = Boolean(id);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showJoinDatePicker, setShowJoinDatePicker] = useState(false);
+  const [showRegularDatePicker, setShowRegularDatePicker] = useState(false);
+  const [showFeeMonthPicker, setShowFeeMonthPicker] = useState(false);
   const [member, setMember] = useState({
     name: '',
     gender: '男',
@@ -29,29 +29,49 @@ export default function MemberEdit() {
     political_status: '中共党员',
     join_date: '',
     regular_date: '',
-    branch_name: '',
+    branch_id: user?.branch_id || 0,
+    branch_name: user?.branch_name || '',
     last_fee_month: '',
     status: 'active',
     remarks: '',
   });
 
-  const [branches, setBranches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showJoinDatePicker, setShowJoinDatePicker] = useState(false);
-  const [showRegularDatePicker, setShowRegularDatePicker] = useState(false);
-  const [showFeeMonthPicker, setShowFeeMonthPicker] = useState(false);
+  const branchLocked = isBranchSecretary(user);
+  const selectedBranchName = useMemo(() => {
+    if (member.branch_id) {
+      return branches.find((branch) => branch.id === member.branch_id)?.name || member.branch_name;
+    }
+    return member.branch_name;
+  }, [branches, member.branch_id, member.branch_name]);
 
   useEffect(() => {
-    loadBranches();
-    if (isEdit) {
-      loadMemberDetail();
+    if (!canCreateMember(user)) {
+      Alert.alert('无权限', isEdit ? '当前角色无权编辑党员' : '当前角色无权新增党员', [
+        { text: '返回', onPress: () => router.back() },
+      ]);
+      return;
     }
-  }, [id]);
+
+    void loadBranches();
+    if (isEdit) {
+      void loadMemberDetail();
+    }
+  }, [id, user]);
 
   const loadBranches = async () => {
     try {
       const { data } = await requestJson<any[]>('/api/v1/branches');
-      setBranches(Array.isArray(data) ? data : []);
+      const nextBranches = Array.isArray(data) ? data : [];
+      setBranches(nextBranches);
+
+      if (!member.branch_id && user?.branch_id) {
+        const ownBranch = nextBranches.find((branch) => branch.id === user.branch_id);
+        setMember((current) => ({
+          ...current,
+          branch_id: ownBranch?.id || current.branch_id,
+          branch_name: ownBranch?.name || current.branch_name,
+        }));
+      }
     } catch (error) {
       console.error('Load branches error:', error);
       setBranches([]);
@@ -77,329 +97,267 @@ export default function MemberEdit() {
         political_status: data.political_status || '中共党员',
         join_date: data.join_date || '',
         regular_date: data.regular_date || '',
+        branch_id: data.branch_id || 0,
         branch_name: data.branch_name || '',
         last_fee_month: data.last_fee_month || '',
         status: data.status || 'active',
         remarks: data.remarks || '',
       });
     } catch (error) {
-      console.error('Load member error:', error);
-      Alert.alert('错误', '加载党员信息失败');
+      console.error('Load member detail error:', error);
+      Alert.alert('加载失败', '党员信息加载失败，请稍后重试');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!member.name) {
-      Alert.alert('提示', '请输入姓名');
+    if (!member.name.trim()) {
+      Alert.alert('提示', '请输入党员姓名');
       return;
     }
 
-    if (!member.join_date) {
+    if (!member.join_date.trim()) {
       Alert.alert('提示', '请选择入党日期');
       return;
     }
 
-    if (!member.branch_name.trim()) {
-      Alert.alert('提示', '请选择所属支部');
+    if (!member.branch_id) {
+      Alert.alert('提示', '请选择所属党支部');
       return;
     }
 
     try {
       setLoading(true);
-      const url = isEdit
-        ? getApiUrl(`/api/v1/members/${id}`)
-        : getApiUrl('/api/v1/members');
-
-      const response = await fetch(url, {
+      const { data } = await requestJson<any>(isEdit ? `/api/v1/members/${id}` : '/api/v1/members', {
         method: isEdit ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(member),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...member,
+          branch_name: selectedBranchName,
+        }),
       });
 
-      if (response.ok) {
-        Alert.alert('成功', isEdit ? '更新成功' : '创建成功', [
-          {
-            text: '确定',
-            onPress: () => router.back(),
-          },
-        ]);
-      } else {
-        const payload = await response.json().catch(() => null);
-        Alert.alert('错误', getApiMessage(payload, '保存失败'));
+      if (!isEdit && data?.account) {
+        Alert.alert(
+          '创建成功',
+          `党员信息已落库，并同步生成账号。\n账号：${data.account.username}\n初始密码：${data.account.default_password}`,
+          [{ text: '确定', onPress: () => router.back() }]
+        );
+        return;
       }
+
+      Alert.alert('保存成功', isEdit ? '党员信息已更新' : '党员已创建', [
+        { text: '确定', onPress: () => router.back() },
+      ]);
     } catch (error) {
-      console.error('Save error:', error);
-      Alert.alert('错误', '保存失败');
+      console.error('Save member error:', error);
+      Alert.alert('保存失败', error instanceof Error ? error.message : '请稍后重试');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const parseDate = (dateStr: string) => {
-    if (!dateStr) return new Date();
-    const parts = dateStr.split('-');
-    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1);
-  };
-
   return (
     <Screen>
-      <View className="flex-1 bg-gray-900">
-        {/* 顶部栏 */}
-        <View className="bg-red-900 px-4 pt-12 pb-4">
+      <View className="flex-1 bg-red-50">
+        <View className="bg-red-700 px-4 pb-4 pt-12">
           <View className="flex-row items-center justify-between">
             <TouchableOpacity onPress={() => router.back()}>
-              <FontAwesome6 name="arrow-left" size={24} color="white" />
+              <FontAwesome6 name="arrow-left" size={20} color="white" />
             </TouchableOpacity>
-            <Text className="text-white font-bold text-lg">
-              {isEdit ? '编辑党员信息' : '新增党员'}
-            </Text>
+            <Text className="text-lg font-bold text-white">{isEdit ? '编辑党员' : '新建党员'}</Text>
             <TouchableOpacity onPress={handleSave} disabled={loading}>
-              <Text className="text-white font-bold">保存</Text>
+              <Text className="font-semibold text-white">{loading ? '保存中' : '保存'}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView className="flex-1">
-          <View className="px-4 py-4">
-            {/* 基本信息 */}
-            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
-              <Text className="text-white font-bold text-lg mb-4">基本信息</Text>
+        <ScrollView className="flex-1 px-4 py-4">
+          <SectionCard title="基础信息">
+            <FormItem label="姓名 *" value={member.name} onChangeText={(name) => setMember({ ...member, name })} />
+            <FormItem label="性别" value={member.gender} onChangeText={(gender) => setMember({ ...member, gender })} />
+            <FormItem
+              label="出生日期"
+              value={member.birthday}
+              onChangeText={(birthday) => setMember({ ...member, birthday })}
+              placeholder="YYYY-MM-DD"
+            />
+            <FormItem
+              label="部门"
+              value={member.department}
+              onChangeText={(department) => setMember({ ...member, department })}
+            />
+            <FormItem
+              label="职务"
+              value={member.position}
+              onChangeText={(position) => setMember({ ...member, position })}
+            />
+            <FormItem
+              label="手机号"
+              value={member.phone}
+              onChangeText={(phone) => setMember({ ...member, phone })}
+              keyboardType="phone-pad"
+            />
+            <FormItem
+              label="邮箱"
+              value={member.email}
+              onChangeText={(email) => setMember({ ...member, email })}
+              keyboardType="email-address"
+            />
+          </SectionCard>
 
-              <View className="space-y-4">
-                <FormItem
-                  label="姓名 *"
-                  value={member.name}
-                  onChangeText={(text) => setMember({ ...member, name: text })}
-                  placeholder="请输入姓名"
-                />
+          <SectionCard title="党籍信息">
+            <FormItem
+              label="政治面貌"
+              value={member.political_status}
+              onChangeText={(political_status) => setMember({ ...member, political_status })}
+            />
+            <DateField label="入党日期 *" value={member.join_date} onPress={() => setShowJoinDatePicker(true)} />
+            <DateField label="转正日期" value={member.regular_date} onPress={() => setShowRegularDatePicker(true)} />
+            <DateField label="党费缴纳年月" value={member.last_fee_month} onPress={() => setShowFeeMonthPicker(true)} />
 
-                <FormItem
-                  label="性别"
-                  value={member.gender}
-                  onChangeText={(text) => setMember({ ...member, gender: text })}
-                  placeholder="请输入性别"
-                />
-
-                <FormItem
-                  label="出生日期"
-                  value={member.birthday}
-                  onChangeText={(text) => setMember({ ...member, birthday: text })}
-                  placeholder="YYYY-MM-DD"
-                />
-
-                <FormItem
-                  label="部门 *"
-                  value={member.department}
-                  onChangeText={(text) => setMember({ ...member, department: text })}
-                  placeholder="请输入部门"
-                />
-
-                <FormItem
-                  label="职务"
-                  value={member.position}
-                  onChangeText={(text) => setMember({ ...member, position: text })}
-                  placeholder="请输入职务"
-                />
-
-                <FormItem
-                  label="联系电话"
-                  value={member.phone}
-                  onChangeText={(text) => setMember({ ...member, phone: text })}
-                  placeholder="请输入联系电话"
-                />
-
-                <FormItem
-                  label="邮箱"
-                  value={member.email}
-                  onChangeText={(text) => setMember({ ...member, email: text })}
-                  placeholder="请输入邮箱"
-                />
-              </View>
-            </View>
-
-            {/* 党籍信息 */}
-            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
-              <Text className="text-white font-bold text-lg mb-4">党籍信息</Text>
-
-              <View className="space-y-4">
-                <FormItem
-                  label="政治面貌 *"
-                  value={member.political_status}
-                  onChangeText={(text) => setMember({ ...member, political_status: text })}
-                  placeholder="请输入政治面貌"
-                />
-
-                <TouchableOpacity
-                  onPress={() => setShowJoinDatePicker(true)}
-                  className="border border-gray-600 rounded-lg px-4 py-3"
-                >
-                  <Text className="text-gray-400 text-sm mb-1">入党日期 *</Text>
-                  <Text className={member.join_date ? 'text-white' : 'text-gray-500'}>
-                    {member.join_date || '请选择日期'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setShowRegularDatePicker(true)}
-                  className="border border-gray-600 rounded-lg px-4 py-3"
-                >
-                  <Text className="text-gray-400 text-sm mb-1">转正日期</Text>
-                  <Text className={member.regular_date ? 'text-white' : 'text-gray-500'}>
-                    {member.regular_date || '请选择日期'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setShowFeeMonthPicker(true)}
-                  className="border border-gray-600 rounded-lg px-4 py-3"
-                >
-                  <Text className="text-gray-400 text-sm mb-1">党费缴纳年月</Text>
-                  <Text className={member.last_fee_month ? 'text-white' : 'text-gray-500'}>
-                    {member.last_fee_month || '请选择年月'}
-                  </Text>
-                  <FontAwesome6 name="calendar" size={14} color="#DC2626" style={{ position: 'absolute', right: 12, top: 40 }} />
-                </TouchableOpacity>
-
-                <FormItem
-                  label="所属支部 *"
-                  value={member.branch_name}
-                  onChangeText={(text) => setMember({ ...member, branch_name: text })}
-                  placeholder="请输入已有支部名称或点击下方快捷选择"
-                />
-                <Text className="text-xs leading-5 text-gray-500">
-                  为避免党员信息落入错误支部，手工维护时请优先选择已有支部；如需新增支部，请先到“党支部管理”中创建。
+            <View className="mb-4">
+              <Text className="mb-2 text-sm text-slate-500">所属党支部 *</Text>
+              <View className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+                <Text className="text-slate-900">
+                  {selectedBranchName || (branchLocked ? user?.branch_name || '未绑定支部' : '请选择所属党支部')}
                 </Text>
-                {branches.length > 0 && (
-                  <View className="flex-row flex-wrap gap-2">
-                    {branches.map((branch) => (
-                      <TouchableOpacity
-                        key={branch.id}
-                        onPress={() => setMember({ ...member, branch_name: branch.name })}
-                        className={`rounded-full border px-3 py-2 ${
-                          member.branch_name === branch.name
-                            ? 'border-red-500 bg-red-900/20'
-                            : 'border-gray-700 bg-gray-700'
+              </View>
+              <Text className="mt-2 text-xs leading-5 text-slate-500">
+                {branchLocked
+                  ? '当前角色为党支部书记/委员，新增党员时只能选择本支部。'
+                  : '党建纪检部可选择任意已存在支部。'}
+              </Text>
+              <View className="mt-3 flex-row flex-wrap">
+                {branches.map((branch) => {
+                  const disabled = branchLocked && branch.id !== user?.branch_id;
+                  return (
+                    <TouchableOpacity
+                      key={branch.id}
+                      disabled={disabled}
+                      onPress={() =>
+                        setMember({
+                          ...member,
+                          branch_id: branch.id,
+                          branch_name: branch.name,
+                        })
+                      }
+                      className={`mr-2 mt-2 rounded-full border px-3 py-2 ${
+                        member.branch_id === branch.id
+                          ? 'border-red-300 bg-red-50'
+                          : 'border-red-100 bg-white'
+                      } ${disabled ? 'opacity-50' : ''}`}
+                    >
+                      <Text
+                        className={`text-xs ${
+                          member.branch_id === branch.id ? 'text-red-700' : 'text-slate-500'
                         }`}
                       >
-                        <Text
-                          className={`text-xs ${
-                            member.branch_name === branch.name ? 'text-red-400' : 'text-gray-300'
-                          }`}
-                        >
-                          {branch.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+                        {branch.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
+          </SectionCard>
 
-            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
-              <Text className="text-white font-bold text-lg mb-4">党员状态</Text>
-              <View className="grid grid-cols-2 gap-3">
-                {[
-                  { value: 'active', label: '正常' },
-                  { value: 'probationary', label: '预备党员' },
-                  { value: 'transferred_out', label: '转出' },
-                  { value: 'suspended', label: '停止党籍' },
-                ].map((item) => (
-                  <TouchableOpacity
-                    key={item.value}
-                    onPress={() => setMember({ ...member, status: item.value })}
-                    className={`rounded-lg border py-3 ${
-                      member.status === item.value
-                        ? 'border-red-500 bg-red-900/20'
-                        : 'border-gray-700 bg-gray-700'
+          <SectionCard title="党员状态">
+            <View className="flex-row flex-wrap">
+              {[
+                { value: 'active', label: '正式党员' },
+                { value: 'probationary', label: '预备党员' },
+                { value: 'transferred_out', label: '已转出' },
+                { value: 'suspended', label: '暂停党籍' },
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item.value}
+                  onPress={() => setMember({ ...member, status: item.value })}
+                  className={`mr-2 mt-2 rounded-full border px-4 py-2 ${
+                    member.status === item.value
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-red-100 bg-white'
+                  }`}
+                >
+                  <Text
+                    className={`text-sm ${
+                      member.status === item.value ? 'text-red-700' : 'text-slate-500'
                     }`}
                   >
-                    <Text
-                      className={`text-center ${
-                        member.status === item.value ? 'text-red-400' : 'text-gray-300'
-                      }`}
-                    >
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
+          </SectionCard>
 
-            {/* 备注信息 */}
-            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
-              <Text className="text-white font-bold text-lg mb-4">备注</Text>
-              <TextInput
-                className="bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 h-24"
-                placeholder="请输入备注信息"
-                placeholderTextColor="#6B7280"
-                value={member.remarks}
-                onChangeText={(text) => setMember({ ...member, remarks: text })}
-                multiline
-                textAlignVertical="top"
-              />
-            </View>
-          </View>
+          <SectionCard title="备注">
+            <TextInput
+              className="h-24 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
+              value={member.remarks}
+              onChangeText={(remarks) => setMember({ ...member, remarks })}
+              placeholder="可填写培养情况、转正计划等说明"
+              placeholderTextColor="#94A3B8"
+              multiline
+              textAlignVertical="top"
+            />
+          </SectionCard>
         </ScrollView>
 
-        {/* 入党日期选择器 */}
-        {showJoinDatePicker && (
+        {showJoinDatePicker ? (
           <DateTimePicker
-            value={parseDate(member.join_date)}
+            value={toDate(member.join_date)}
             mode="date"
             display="default"
-            onChange={(event, date) => {
+            onChange={(_, value) => {
               setShowJoinDatePicker(false);
-              if (date) {
-                setMember({ ...member, join_date: formatDate(date) });
+              if (value) {
+                setMember({ ...member, join_date: formatDate(value) });
               }
             }}
           />
-        )}
-
-        {/* 转正日期选择器 */}
-        {showRegularDatePicker && (
+        ) : null}
+        {showRegularDatePicker ? (
           <DateTimePicker
-            value={parseDate(member.regular_date)}
+            value={toDate(member.regular_date)}
             mode="date"
             display="default"
-            onChange={(event, date) => {
+            onChange={(_, value) => {
               setShowRegularDatePicker(false);
-              if (date) {
-                setMember({ ...member, regular_date: formatDate(date) });
+              if (value) {
+                setMember({ ...member, regular_date: formatDate(value) });
               }
             }}
           />
-        )}
-
-        {/* 党费缴纳年月选择器 */}
-        {showFeeMonthPicker && (
+        ) : null}
+        {showFeeMonthPicker ? (
           <DateTimePicker
-            value={member.last_fee_month ? parseDate(member.last_fee_month + '-01') : new Date()}
+            value={toDate(member.last_fee_month ? `${member.last_fee_month}-01` : '')}
             mode="date"
             display="default"
-            onChange={(event, date) => {
+            onChange={(_, value) => {
               setShowFeeMonthPicker(false);
-              if (date) {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                setMember({ ...member, last_fee_month: `${year}-${month}` });
+              if (value) {
+                setMember({
+                  ...member,
+                  last_fee_month: `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`,
+                });
               }
             }}
           />
-        )}
+        ) : null}
       </View>
     </Screen>
+  );
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View className="mb-4 rounded-3xl border border-red-100 bg-white p-4">
+      <Text className="mb-4 text-base font-semibold text-red-700">{title}</Text>
+      {children}
+    </View>
   );
 }
 
@@ -408,22 +366,61 @@ function FormItem({
   value,
   onChangeText,
   placeholder,
+  keyboardType,
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
-  placeholder: string;
+  placeholder?: string;
+  keyboardType?: 'default' | 'phone-pad' | 'email-address';
 }) {
   return (
-    <View>
-      <Text className="text-gray-400 text-sm mb-2">{label}</Text>
+    <View className="mb-4">
+      <Text className="mb-2 text-sm text-slate-500">{label}</Text>
       <TextInput
-        className="bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600"
-        placeholder={placeholder}
-        placeholderTextColor="#6B7280"
+        className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
         value={value}
         onChangeText={onChangeText}
+        placeholder={placeholder || `请输入${label.replace('*', '').trim()}`}
+        placeholderTextColor="#94A3B8"
+        keyboardType={keyboardType || 'default'}
       />
     </View>
   );
+}
+
+function DateField({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity onPress={onPress} className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+      <Text className="mb-1 text-sm text-slate-500">{label}</Text>
+      <View className="flex-row items-center justify-between">
+        <Text className={value ? 'text-slate-900' : 'text-slate-400'}>{value || '请选择日期'}</Text>
+        <FontAwesome6 name="calendar" size={14} color="#DC2626" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function formatDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toDate(value: string) {
+  if (!value) {
+    return new Date();
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
 }

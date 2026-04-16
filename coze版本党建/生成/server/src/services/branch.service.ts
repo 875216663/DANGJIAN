@@ -7,10 +7,15 @@ import {
   toMemberView,
   updateStore,
 } from '../models/store.model';
+import { getDatabasePool, isDatabaseEnabled } from '../config/database';
 import { AppError } from '../utils/app-error';
 import type { CurrentUserContext } from '../middlewares/auth.middleware';
 import { resolveBranchScope } from '../middlewares/auth.middleware';
 import { assertBranchAccess, requireEntity } from './store-helper.service';
+import {
+  canCreateBranch,
+  canEditBranch,
+} from '../utils/rbac';
 
 interface BranchListQuery {
   branch_id?: number;
@@ -20,11 +25,13 @@ interface BranchMutationPayload {
   name?: string;
   code?: string;
   description?: string;
+  contact_phone?: string;
   establish_date?: string;
   renewal_reminder_date?: string;
   secretary_id?: number;
   secretary_name?: string;
   status?: string;
+  remark?: string;
 }
 
 interface ActivistMutationPayload {
@@ -35,10 +42,6 @@ interface ActivistMutationPayload {
   education?: string;
   application_date?: string;
   talk_date?: string;
-}
-
-function canManageAllBranches(currentUser: CurrentUserContext) {
-  return currentUser.role === 'party_committee' || currentUser.role === 'party_inspection';
 }
 
 export async function listBranches(query: BranchListQuery, currentUser: CurrentUserContext) {
@@ -78,8 +81,97 @@ export async function listBranchActivists(id: number, currentUser: CurrentUserCo
 }
 
 export async function createBranch(payload: BranchMutationPayload, currentUser: CurrentUserContext) {
-  if (!canManageAllBranches(currentUser)) {
-    throw new AppError(403, '仅党委管理员可以创建支部');
+  if (!canCreateBranch(currentUser.role)) {
+    throw new AppError(403, '仅党建纪检部可以创建支部');
+  }
+
+  if (isDatabaseEnabled()) {
+    await readStore();
+    const pool = getDatabasePool();
+    if (!pool) {
+      throw new AppError(500, '数据库连接不可用');
+    }
+
+    const nextName = payload.name?.trim() || '';
+    const nextCode = payload.code?.trim() || '';
+    const duplicated = await pool.query<{ id: number }>(
+      'SELECT id FROM branches WHERE name = $1 OR code = $2 LIMIT 1',
+      [nextName, nextCode]
+    );
+
+    if (duplicated.rows.length > 0) {
+      throw new AppError(409, '支部名称或支部代码已存在');
+    }
+
+    const nextIdResult = await pool.query<{ id: string }>(
+      'SELECT COALESCE(MAX(id), 0)::text AS id FROM branches'
+    );
+    const nextId = Number(nextIdResult.rows[0]?.id ?? '0') + 1;
+    const created = await pool.query<{
+      id: number;
+      name: string;
+      code: string;
+      description: string;
+      contact_phone: string;
+      establish_date: string;
+      renewal_reminder_date: string;
+      secretary_id: number | null;
+      secretary_name: string;
+      status: string;
+      remark: string;
+      committee_members: unknown[];
+    }>(
+      `
+        INSERT INTO branches (
+          id, name, code, description, contact_phone, establish_date, renewal_reminder_date,
+          secretary_id, secretary_name, status, remark, committee_members
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
+        RETURNING *
+      `,
+      [
+        nextId,
+        nextName,
+        nextCode,
+        payload.description?.trim() || '',
+        payload.contact_phone?.trim() || '',
+        payload.establish_date?.trim() || new Date().toISOString().slice(0, 10),
+        payload.renewal_reminder_date?.trim() ||
+          payload.establish_date?.trim() ||
+          new Date().toISOString().slice(0, 10),
+        payload.secretary_id ?? null,
+        payload.secretary_name?.trim() || '',
+        payload.status?.trim() || 'active',
+        payload.remark?.trim() || '',
+        JSON.stringify(
+          payload.secretary_name?.trim()
+            ? [{ position: '书记', name: payload.secretary_name.trim() }]
+            : []
+        ),
+      ]
+    );
+
+    const row = created.rows[0];
+    return {
+      id: Number(row.id),
+      name: row.name,
+      code: row.code,
+      description: row.description,
+      contact_phone: row.contact_phone || '',
+      establish_date: row.establish_date ? String(row.establish_date).slice(0, 10) : '',
+      renewal_reminder_date: row.renewal_reminder_date
+        ? String(row.renewal_reminder_date).slice(0, 10)
+        : '',
+      secretary_id: row.secretary_id ? Number(row.secretary_id) : undefined,
+      secretary_name: row.secretary_name || '',
+      status: row.status,
+      remark: row.remark || '',
+      committee_members: Array.isArray(row.committee_members) ? row.committee_members : [],
+      member_count: 0,
+      probationary_count: 0,
+      activist_count: 0,
+      applicant_count: 0,
+    };
   }
 
   return updateStore((store) => {
@@ -99,6 +191,7 @@ export async function createBranch(payload: BranchMutationPayload, currentUser: 
       name: nextName,
       code: nextCode,
       description: payload.description?.trim() || '',
+      contact_phone: payload.contact_phone?.trim() || '',
       establish_date: payload.establish_date?.trim() || new Date().toISOString().slice(0, 10),
       renewal_reminder_date:
         payload.renewal_reminder_date?.trim() ||
@@ -107,6 +200,7 @@ export async function createBranch(payload: BranchMutationPayload, currentUser: 
       secretary_id: payload.secretary_id,
       secretary_name: payload.secretary_name?.trim() || '',
       status: payload.status?.trim() || 'active',
+      remark: payload.remark?.trim() || '',
       committee_members: payload.secretary_name?.trim()
         ? [{ position: '书记', name: payload.secretary_name.trim() }]
         : [],
@@ -122,6 +216,10 @@ export async function updateBranch(
   payload: BranchMutationPayload,
   currentUser: CurrentUserContext
 ) {
+  if (!canEditBranch(currentUser.role)) {
+    throw new AppError(403, '仅党建纪检部可以编辑支部');
+  }
+
   const updated = await updateStore((store) => {
     const branch = store.branches.find((item) => item.id === id);
     if (!branch) {
@@ -144,6 +242,7 @@ export async function updateBranch(
     branch.name = nextName;
     branch.code = nextCode;
     branch.description = payload.description?.trim() || '';
+    branch.contact_phone = payload.contact_phone?.trim() || branch.contact_phone || '';
     branch.establish_date = payload.establish_date?.trim() || branch.establish_date;
     branch.renewal_reminder_date =
       payload.renewal_reminder_date?.trim() ||
@@ -152,6 +251,7 @@ export async function updateBranch(
     branch.secretary_id = payload.secretary_id ?? branch.secretary_id;
     branch.secretary_name = payload.secretary_name?.trim() || branch.secretary_name;
     branch.status = payload.status?.trim() || branch.status;
+    branch.remark = payload.remark?.trim() || branch.remark || '';
 
     if (branch.secretary_name) {
       const committeeMembers = branch.committee_members.filter(
@@ -170,8 +270,8 @@ export async function updateBranch(
 }
 
 export async function deleteBranch(id: number, currentUser: CurrentUserContext) {
-  if (!canManageAllBranches(currentUser)) {
-    throw new AppError(403, '仅党委管理员可以删除支部');
+  if (!canEditBranch(currentUser.role)) {
+    throw new AppError(403, '仅党建纪检部可以删除支部');
   }
 
   const deleted = await updateStore((store) => {

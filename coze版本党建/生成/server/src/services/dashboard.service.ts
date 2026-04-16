@@ -2,18 +2,25 @@ import { readStore } from '../models/store.model';
 import { calculateMonthDistance, getCurrentMonth, getLastMonth } from '../utils/date';
 import type { CurrentUserContext } from '../middlewares/auth.middleware';
 import { resolveBranchScope } from '../middlewares/auth.middleware';
+import { isPartyMemberRole } from '../utils/rbac';
 
 export async function getDashboardSummary(currentUser: CurrentUserContext) {
   const store = await readStore();
   const scopedBranchId = resolveBranchScope(currentUser, undefined);
 
-  const members = scopedBranchId
+  const members = isPartyMemberRole(currentUser.role)
+    ? store.members.filter((member) => member.user_id === currentUser.userId)
+    : scopedBranchId
     ? store.members.filter((member) => member.branch_id === scopedBranchId)
     : store.members;
-  const branches = scopedBranchId
+  const branches = isPartyMemberRole(currentUser.role)
+    ? store.branches.filter((branch) => branch.id === members[0]?.branch_id)
+    : scopedBranchId
     ? store.branches.filter((branch) => branch.id === scopedBranchId)
     : store.branches;
-  const meetings = scopedBranchId
+  const meetings = isPartyMemberRole(currentUser.role)
+    ? []
+    : scopedBranchId
     ? store.meetings.filter((meeting) => meeting.branch_id === scopedBranchId)
     : store.meetings;
   const currentMonth = getCurrentMonth();
@@ -61,10 +68,14 @@ export async function getDashboardAlerts(currentUser: CurrentUserContext) {
   const store = await readStore();
   const scopedBranchId = resolveBranchScope(currentUser, undefined);
 
-  const members = scopedBranchId
+  const members = isPartyMemberRole(currentUser.role)
+    ? store.members.filter((member) => member.user_id === currentUser.userId)
+    : scopedBranchId
     ? store.members.filter((member) => member.branch_id === scopedBranchId)
     : store.members;
-  const branches = scopedBranchId
+  const branches = isPartyMemberRole(currentUser.role)
+    ? []
+    : scopedBranchId
     ? store.branches.filter((branch) => branch.id === scopedBranchId)
     : store.branches;
 
@@ -121,10 +132,14 @@ export async function getDashboardTodos(currentUser: CurrentUserContext) {
   const store = await readStore();
   const scopedBranchId = resolveBranchScope(currentUser, undefined);
 
-  const members = scopedBranchId
+  const members = isPartyMemberRole(currentUser.role)
+    ? store.members.filter((member) => member.user_id === currentUser.userId)
+    : scopedBranchId
     ? store.members.filter((member) => member.branch_id === scopedBranchId)
     : store.members;
-  const meetings = scopedBranchId
+  const meetings = isPartyMemberRole(currentUser.role)
+    ? []
+    : scopedBranchId
     ? store.meetings.filter((meeting) => meeting.branch_id === scopedBranchId)
     : store.meetings;
 

@@ -41,7 +41,7 @@ router.get(
 router.post(
   '/:id/activists',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin', 'branch_secretary'),
   validateRequest(idParamSchema, 'params'),
   validateRequest(activistMutationSchema, 'body'),
   asyncHandler(branchController.createActivist)
@@ -49,7 +49,7 @@ router.post(
 router.put(
   '/:id/activists/:activistId',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin', 'branch_secretary'),
   validateRequest(branchActivistParamSchema, 'params'),
   validateRequest(activistMutationSchema, 'body'),
   asyncHandler(branchController.updateActivist)
@@ -57,21 +57,21 @@ router.put(
 router.delete(
   '/:id/activists/:activistId',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin', 'branch_secretary'),
   validateRequest(branchActivistParamSchema, 'params'),
   asyncHandler(branchController.deleteActivist)
 );
 router.post(
   '/',
   authenticate,
-  requireRoles('party_committee', 'party_inspection'),
+  requireRoles('party_admin'),
   validateRequest(branchMutationSchema, 'body'),
   asyncHandler(branchController.createBranch)
 );
 router.put(
   '/:id',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin'),
   validateRequest(idParamSchema, 'params'),
   validateRequest(branchUpdateSchema, 'body'),
   asyncHandler(branchController.updateBranch)
@@ -79,7 +79,7 @@ router.put(
 router.delete(
   '/:id',
   authenticate,
-  requireRoles('party_committee', 'party_inspection'),
+  requireRoles('party_admin'),
   validateRequest(idParamSchema, 'params'),
   asyncHandler(branchController.deleteBranch)
 );

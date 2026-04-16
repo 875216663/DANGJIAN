@@ -1,17 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { requestJson } from '@/utils/api';
+import { canCreateBranch } from '@/utils/rbac';
 
 export default function Branches() {
   const router = useSafeRouter();
@@ -19,7 +14,6 @@ export default function Branches() {
   const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
   const loadBranches = useCallback(async () => {
     setLoading(true);
@@ -41,7 +35,7 @@ export default function Branches() {
   );
 
   const filteredBranches = branches.filter((branch) =>
-    [branch.name, branch.code, branch.secretary_name]
+    [branch.name, branch.code, branch.secretary_name, branch.contact_phone]
       .join(' ')
       .toLowerCase()
       .includes(searchKeyword.trim().toLowerCase())
@@ -49,137 +43,103 @@ export default function Branches() {
 
   return (
     <Screen>
-      <View className="flex-1 bg-gray-900">
-        {/* 顶部栏 */}
-        <View className="bg-red-900 px-4 pt-12 pb-4">
+      <View className="flex-1 bg-red-50">
+        <View className="bg-red-700 px-4 pb-4 pt-12">
           <View className="flex-row items-center justify-between">
             <TouchableOpacity onPress={() => router.back()}>
-              <FontAwesome6 name="arrow-left" size={24} color="white" />
+              <FontAwesome6 name="arrow-left" size={20} color="white" />
             </TouchableOpacity>
-            <Text className="text-white font-bold text-lg">党支部管理</Text>
-            {canManage ? (
+            <Text className="text-lg font-bold text-white">党支部管理</Text>
+            {canCreateBranch(user) ? (
               <TouchableOpacity onPress={() => router.push('/branch-edit')}>
-                <FontAwesome6 name="plus" size={24} color="white" />
+                <FontAwesome6 name="plus" size={20} color="white" />
               </TouchableOpacity>
             ) : (
-              <View className="w-6" />
+              <View className="w-5" />
             )}
           </View>
+          <Text className="mt-3 text-xs text-red-100">
+            {canCreateBranch(user)
+              ? '党建纪检部可创建和维护党支部，保存后会直接落库。'
+              : '当前角色为查看型视角，不显示新建党支部入口。'}
+          </Text>
         </View>
 
-        <View className="bg-gray-800 px-4 py-3">
-          <View className="flex-row items-center rounded-2xl bg-gray-700 px-3 py-3">
-            <FontAwesome6 name="magnifying-glass" size={16} color="#9CA3AF" />
-            <TextInput
-              className="ml-2 flex-1 text-white"
-              placeholder="搜索支部名称、代码、书记"
-              placeholderTextColor="#6B7280"
-              value={searchKeyword}
-              onChangeText={setSearchKeyword}
-            />
+        <View className="px-4 py-4">
+          <View className="rounded-2xl border border-red-100 bg-white px-3 py-3">
+            <View className="flex-row items-center">
+              <FontAwesome6 name="magnifying-glass" size={16} color="#94A3B8" />
+              <TextInput
+                className="ml-2 flex-1 text-slate-900"
+                placeholder="搜索支部名称、代码、书记或联系电话"
+                placeholderTextColor="#94A3B8"
+                value={searchKeyword}
+                onChangeText={setSearchKeyword}
+              />
+            </View>
+          </View>
+
+          <View className="mt-4 rounded-2xl border border-red-100 bg-white px-4 py-3">
+            <Text className="text-sm text-slate-500">当前列表共 {filteredBranches.length} 个党支部</Text>
           </View>
         </View>
 
-        {/* 统计信息 */}
-        <View className="px-4 py-3">
-          <View className="flex-row items-center space-x-2">
-            <FontAwesome6 name="building-columns" size={20} color="#DC2626" />
-            <Text className="text-gray-400 text-sm">共 {filteredBranches.length} 个支部</Text>
-          </View>
-        </View>
-
-        {/* 列表 */}
-        <ScrollView className="flex-1 px-4 py-2">
+        <ScrollView className="flex-1 px-4 pb-6">
           {loading ? (
-            <View className="py-20 items-center">
-              <FontAwesome6 name="spinner" size={40} color="#DC2626" />
-              <Text className="text-gray-500 mt-2">加载中...</Text>
-            </View>
+            <EmptyState icon="spinner" title="正在加载支部数据..." />
           ) : filteredBranches.length === 0 ? (
-            <View className="py-20 items-center">
-              <FontAwesome6 name="building" size={60} color="#374151" />
-              <Text className="text-gray-500 mt-4">暂无匹配的支部数据</Text>
-            </View>
+            <EmptyState icon="building-columns" title="暂无匹配的党支部数据" />
           ) : (
             filteredBranches.map((branch) => (
               <TouchableOpacity
                 key={branch.id}
-                className="bg-gray-800 rounded-xl p-4 mb-3 border border-gray-700"
+                className="mb-3 rounded-3xl border border-red-100 bg-white p-4"
                 onPress={() => router.push('/branch-detail', { id: branch.id })}
               >
-                <View className="flex-row justify-between items-start mb-3">
+                <View className="flex-row items-start justify-between">
                   <View className="flex-1">
-                    <View className="flex-row items-center space-x-2">
-                      <FontAwesome6 name="building-columns" size={18} color="#DC2626" />
-                      <Text className="text-white font-bold text-lg">{branch.name}</Text>
+                    <View className="flex-row items-center">
+                      <View className="mr-3 h-10 w-10 items-center justify-center rounded-2xl bg-red-50">
+                        <FontAwesome6 name="building-columns" size={16} color="#DC2626" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-base font-semibold text-slate-900">{branch.name}</Text>
+                        <Text className="mt-1 text-xs text-slate-500">支部代码：{branch.code}</Text>
+                      </View>
                     </View>
-                    <Text className="text-gray-500 text-sm mt-1">代码: {branch.code}</Text>
-                  </View>
-                  <FontAwesome6 name="chevron-right" size={16} color="#6B7280" />
-                </View>
-
-                <View className="flex-row space-x-3 mt-3 pt-3 border-t border-gray-700">
-                  <View className="flex-1">
-                    <View className="flex-row items-center space-x-2">
-                      <FontAwesome6 name="users" size={14} color="#10B981" />
-                      <Text className="text-green-500 font-bold text-xl">{branch.member_count}</Text>
+                    <View className="mt-4 flex-row flex-wrap">
+                      <Badge label={`书记：${branch.secretary_name || '未设置'}`} />
+                      <Badge label={`党员 ${branch.member_count || 0} 名`} />
+                      {branch.contact_phone ? <Badge label={`联系电话 ${branch.contact_phone}`} /> : null}
                     </View>
-                    <Text className="text-gray-500 text-xs mt-1">党员总数</Text>
-                  </View>
-                  <View className="flex-1">
-                    <View className="flex-row items-center space-x-2">
-                      <FontAwesome6 name="user-clock" size={14} color="#F59E0B" />
-                      <Text className="text-yellow-500 font-bold text-xl">{branch.probationary_count || 0}</Text>
-                    </View>
-                    <Text className="text-gray-500 text-xs mt-1">预备党员</Text>
-                  </View>
-                  <View className="flex-1">
-                    <View className="flex-row items-center space-x-2">
-                      <FontAwesome6 name="user-tie" size={14} color="#EC4899" />
-                      <Text className="text-pink-500 font-bold text-xl">{branch.secretary_name ? 1 : 0}</Text>
-                    </View>
-                    <Text className="text-gray-500 text-xs mt-1">书记配置</Text>
-                  </View>
-                </View>
-
-                {/* 支部书记 */}
-                <View className="mt-3 pt-3 border-t border-gray-700 flex-row items-center">
-                  <FontAwesome6 name="user-tie" size={14} color="#DC2626" />
-                  <Text className="text-gray-400 text-xs ml-2">支部书记</Text>
-                  <Text className="text-gray-300 text-sm ml-2 flex-1">{branch.secretary_name || '未设置'}</Text>
-                </View>
-
-                {/* 支部委员 */}
-                {branch.committee_members && branch.committee_members.length > 0 && (
-                  <View className="mt-3 pt-3 border-t border-gray-700">
-                    <Text className="text-gray-400 text-xs mb-2">支部委员</Text>
-                    <View className="flex-row flex-wrap gap-2">
-                      {branch.committee_members.map((member: any, idx: number) => (
-                        <View
-                          key={idx}
-                          className="bg-red-900/20 border border-red-900/50 rounded-lg px-2 py-1 flex-row items-center"
-                        >
-                          <FontAwesome6 name="award" size={10} color="#DC2626" />
-                          <Text className="text-red-400 text-xs ml-1">{member.position}</Text>
-                          <Text className="text-gray-300 text-xs ml-1">{member.name}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {branch.establish_date && (
-                  <View className="mt-3 pt-3 border-t border-gray-700">
-                    <Text className="text-gray-500 text-xs">
-                      成立时间: {new Date(branch.establish_date).toLocaleDateString()}
+                    <Text className="mt-3 text-sm leading-6 text-slate-500">
+                      {branch.remark || branch.description || '暂无支部说明'}
                     </Text>
                   </View>
-                )}
+                  <FontAwesome6 name="chevron-right" size={14} color="#94A3B8" />
+                </View>
               </TouchableOpacity>
             ))
           )}
         </ScrollView>
       </View>
     </Screen>
+  );
+}
+
+function Badge({ label }: { label: string }) {
+  return (
+    <View className="mr-2 mt-2 rounded-full border border-red-100 bg-red-50 px-3 py-1">
+      <Text className="text-xs text-red-700">{label}</Text>
+    </View>
+  );
+}
+
+function EmptyState({ icon, title }: { icon: any; title: string }) {
+  return (
+    <View className="items-center rounded-3xl border border-red-100 bg-white px-4 py-16">
+      <FontAwesome6 name={icon} size={40} color="#F87171" />
+      <Text className="mt-4 text-sm text-slate-500">{title}</Text>
+    </View>
   );
 }

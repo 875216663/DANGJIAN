@@ -5,6 +5,7 @@ export interface AuthTokenPayload {
   userId: number;
   role: string;
   branchId?: number;
+  memberId?: number;
   username?: string;
   exp: number;
 }

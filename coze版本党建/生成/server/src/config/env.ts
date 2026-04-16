@@ -17,6 +17,7 @@ const envSchema = z.object({
   DB_POOL_MAX: z.coerce.number().int().positive().default(10),
   JWT_SECRET: z.string().min(16).default(DEFAULT_JWT_SECRET),
   TOKEN_EXPIRES_IN_HOURS: z.coerce.number().int().positive().default(24),
+  DEFAULT_LOGIN_PASSWORD: z.string().min(6).default('123456'),
   CORS_ORIGIN: z.string().default('*'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   PUBLIC_APP_URL: z.string().optional(),

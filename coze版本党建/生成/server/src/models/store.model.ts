@@ -1,11 +1,12 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
-import type { PoolClient } from 'pg';
+import { hashSync } from 'bcryptjs';
 import { getDatabasePool, isDatabaseEnabled, type DatabaseExecutor } from '../config/database';
+import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { ensureDirectory } from '../utils/file';
 import { getCurrentMonth, getLastMonth } from '../utils/date';
-import { getUserDisplayName } from './auth.model';
+import { DEMO_ACCOUNT_SEEDS, getUserDisplayName } from './auth.model';
 import type {
   ActivistRecord,
   BranchRecord,
@@ -15,6 +16,7 @@ import type {
   StoreData,
   StudyFileRecord,
 } from './types';
+import { ROLE_CODES, ROLE_LABELS } from '../utils/rbac';
 
 const DATA_DIR = resolve(process.cwd(), 'data');
 const DB_FILE = resolve(DATA_DIR, 'local-db.json');
@@ -27,11 +29,13 @@ const DEFAULT_STORE: StoreData = {
       name: '综合管理党支部',
       code: 'B001',
       description: '负责人力资源、综合行政、财务等基础管理条线的党建信息维护。',
+      contact_phone: '010-66000001',
       establish_date: '2020-01-15',
       renewal_reminder_date: '2026-12-15',
       secretary_id: 1,
       secretary_name: '张书记',
       status: 'active',
+      remark: '负责基础党建台账与组织关系维护。',
       committee_members: [
         { position: '书记', name: '张书记' },
         { position: '组织委员', name: '李委员' },
@@ -42,11 +46,13 @@ const DEFAULT_STORE: StoreData = {
       name: '研发运营党支部',
       code: 'B002',
       description: '负责技术研发、产品运营及项目实施条线的党员与支部基础信息管理。',
+      contact_phone: '010-66000002',
       establish_date: '2020-03-20',
       renewal_reminder_date: '2026-10-20',
       secretary_id: 3,
       secretary_name: '王纪检',
       status: 'active',
+      remark: '负责研发、产品、运营条线党建日常管理。',
       committee_members: [
         { position: '书记', name: '王纪检' },
         { position: '组织委员', name: '周主管' },
@@ -221,11 +227,13 @@ async function ensureDatabaseSchema(db: DatabaseExecutor) {
       name VARCHAR(120) NOT NULL UNIQUE,
       code VARCHAR(32) NOT NULL UNIQUE,
       description TEXT NOT NULL DEFAULT '',
+      contact_phone VARCHAR(32) NOT NULL DEFAULT '',
       establish_date DATE NOT NULL,
       renewal_reminder_date DATE NOT NULL,
       secretary_id INTEGER NULL,
       secretary_name VARCHAR(80) NOT NULL DEFAULT '',
       status VARCHAR(24) NOT NULL DEFAULT 'active',
+      remark TEXT NOT NULL DEFAULT '',
       committee_members JSONB NOT NULL DEFAULT '[]'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -244,6 +252,7 @@ async function ensureDatabaseSchema(db: DatabaseExecutor) {
       last_fee_month VARCHAR(7) NOT NULL DEFAULT '',
       status VARCHAR(24) NOT NULL DEFAULT 'active',
       branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
+      user_id INTEGER NULL,
       phone VARCHAR(32) NOT NULL DEFAULT '',
       email VARCHAR(128) NOT NULL DEFAULT '',
       remarks TEXT NOT NULL DEFAULT '',
@@ -318,19 +327,197 @@ async function ensureDatabaseSchema(db: DatabaseExecutor) {
       relative_path TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS roles (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(64) NOT NULL UNIQUE,
+      name VARCHAR(80) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(80) NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      name VARCHAR(80) NOT NULL,
+      mobile VARCHAR(32) NOT NULL DEFAULT '',
+      role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
+      branch_id INTEGER NULL REFERENCES branches(id) ON DELETE SET NULL,
+      status VARCHAR(24) NOT NULL DEFAULT 'active',
+      is_demo BOOLEAN NOT NULL DEFAULT FALSE,
+      description TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    ALTER TABLE branches ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(32) NOT NULL DEFAULT '';
+    ALTER TABLE branches ADD COLUMN IF NOT EXISTS remark TEXT NOT NULL DEFAULT '';
+    ALTER TABLE members ADD COLUMN IF NOT EXISTS user_id INTEGER NULL;
+
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'members_user_id_fkey'
+      ) THEN
+        ALTER TABLE members
+          ADD CONSTRAINT members_user_id_fkey
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+      END IF;
+    END $$;
+
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'members_user_id_key'
+      ) THEN
+        ALTER TABLE members
+          ADD CONSTRAINT members_user_id_key UNIQUE (user_id);
+      END IF;
+    END $$;
+
     CREATE INDEX IF NOT EXISTS idx_members_branch_id ON members(branch_id);
     CREATE INDEX IF NOT EXISTS idx_members_status ON members(status);
     CREATE INDEX IF NOT EXISTS idx_members_last_fee_month ON members(last_fee_month);
+    CREATE INDEX IF NOT EXISTS idx_members_user_id ON members(user_id);
     CREATE INDEX IF NOT EXISTS idx_branches_status ON branches(status);
     CREATE INDEX IF NOT EXISTS idx_activists_branch_id ON activists(branch_id);
     CREATE INDEX IF NOT EXISTS idx_meetings_branch_id ON meetings(branch_id);
     CREATE INDEX IF NOT EXISTS idx_meetings_meeting_date ON meetings(meeting_date DESC);
     CREATE INDEX IF NOT EXISTS idx_notices_publish_date ON notices(publish_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
+    CREATE INDEX IF NOT EXISTS idx_users_branch_id ON users(branch_id);
+    CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
   `);
 
   const branchCount = await db.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM branches');
   if (Number(branchCount.rows[0]?.count ?? '0') === 0) {
     await writeStoreToDatabase(db, getInitialStoreSeed());
+  }
+
+  await ensureRoleSeeds(db);
+  await ensureDemoUsers(db);
+}
+
+async function ensureRoleSeeds(db: DatabaseExecutor) {
+  const roleSeeds = [
+    {
+      code: ROLE_CODES.committeeLeader,
+      name: ROLE_LABELS[ROLE_CODES.committeeLeader],
+      description: '可查看全公司党建总览、支部与党员总体情况，只读访问。',
+    },
+    {
+      code: ROLE_CODES.partyAdmin,
+      name: ROLE_LABELS[ROLE_CODES.partyAdmin],
+      description: '可维护党支部、党员信息，并在新增党员时同步生成账号。',
+    },
+    {
+      code: ROLE_CODES.branchSecretary,
+      name: ROLE_LABELS[ROLE_CODES.branchSecretary],
+      description: '仅可查看本支部数据，可新增本支部党员。',
+    },
+    {
+      code: ROLE_CODES.partyMember,
+      name: ROLE_LABELS[ROLE_CODES.partyMember],
+      description: '仅可查看本人党员档案，无创建权限。',
+    },
+  ];
+
+  for (const role of roleSeeds) {
+    await db.query(
+      `
+        INSERT INTO roles (code, name, description)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (code)
+        DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, updated_at = NOW()
+      `,
+      [role.code, role.name, role.description]
+    );
+  }
+}
+
+async function ensureDemoUsers(db: DatabaseExecutor) {
+  const passwordHash = hashSync(env.DEFAULT_LOGIN_PASSWORD, 10);
+  const branchResult = await db.query<{
+    id: number;
+    name: string;
+  }>('SELECT id, name FROM branches ORDER BY id ASC LIMIT 1');
+  const firstBranch = branchResult.rows[0];
+
+  for (const seed of DEMO_ACCOUNT_SEEDS) {
+    const roleResult = await db.query<{ id: number }>('SELECT id FROM roles WHERE code = $1', [
+      seed.role,
+    ]);
+    const roleId = Number(roleResult.rows[0]?.id);
+    if (!roleId) {
+      continue;
+    }
+
+    const branchId = seed.useFirstBranch ? firstBranch?.id ?? null : null;
+    const existingUser = await db.query<{ id: number }>(
+      'SELECT id FROM users WHERE username = $1 LIMIT 1',
+      [seed.username]
+    );
+
+    let userId = Number(existingUser.rows[0]?.id ?? 0);
+    if (!userId) {
+      const inserted = await db.query<{ id: number }>(
+        `
+          INSERT INTO users (
+            username, password_hash, name, mobile, role_id, branch_id, status, is_demo, description
+          )
+          VALUES ($1, $2, $3, '', $4, $5, 'active', TRUE, $6)
+          RETURNING id
+        `,
+        [seed.username, passwordHash, seed.name, roleId, branchId, seed.description]
+      );
+      userId = Number(inserted.rows[0]?.id ?? 0);
+    } else {
+      await db.query(
+        `
+          UPDATE users
+          SET name = $2,
+              role_id = $3,
+              branch_id = $4,
+              status = 'active',
+              is_demo = TRUE,
+              description = $5,
+              updated_at = NOW()
+          WHERE id = $1
+        `,
+        [userId, seed.name, roleId, branchId, seed.description]
+      );
+    }
+
+    if (seed.bindFirstBranchMember && firstBranch?.id) {
+      const memberResult = await db.query<{ id: number }>(
+        `
+          SELECT id
+          FROM members
+          WHERE branch_id = $1
+            AND (user_id IS NULL OR user_id = $2)
+          ORDER BY id ASC
+          LIMIT 1
+        `,
+        [firstBranch.id, userId]
+      );
+
+      const memberId = Number(memberResult.rows[0]?.id ?? 0);
+      if (memberId) {
+        await db.query(
+          `
+            UPDATE members
+            SET user_id = $2, updated_at = NOW()
+            WHERE id = $1
+          `,
+          [memberId, userId]
+        );
+      }
+    }
   }
 }
 
@@ -358,15 +545,18 @@ async function readStoreFromDatabase(db: DatabaseExecutor): Promise<StoreData> {
       name: row.name,
       code: row.code,
       description: row.description,
+      contact_phone: row.contact_phone || '',
       establish_date: row.establish_date ? String(row.establish_date).slice(0, 10) : '',
       renewal_reminder_date: row.renewal_reminder_date ? String(row.renewal_reminder_date).slice(0, 10) : '',
       secretary_id: row.secretary_id ? Number(row.secretary_id) : undefined,
       secretary_name: row.secretary_name || '',
       status: row.status,
+      remark: row.remark || '',
       committee_members: Array.isArray(row.committee_members) ? row.committee_members : [],
     })),
     members: members.rows.map((row) => ({
       id: Number(row.id),
+      user_id: row.user_id ? Number(row.user_id) : undefined,
       name: row.name,
       gender: row.gender,
       birthday: row.birthday ? String(row.birthday).slice(0, 10) : '',
@@ -445,11 +635,19 @@ async function readStoreFromDatabase(db: DatabaseExecutor): Promise<StoreData> {
 }
 
 async function clearDatabase(db: DatabaseExecutor) {
-  await db.query('TRUNCATE TABLE study_files, notices, meetings, activists, members, branches RESTART IDENTITY CASCADE');
+  await db.query('DELETE FROM study_files');
+  await db.query('DELETE FROM notices');
+  await db.query('DELETE FROM meetings');
+  await db.query('DELETE FROM activists');
+  await db.query('DELETE FROM members');
+  await db.query('DELETE FROM branches');
 }
 
 async function writeStoreToDatabase(db: DatabaseExecutor, payload: StoreData) {
   const data = normalizeStore(payload);
+  const userBranchRefs = await db.query<{ id: number; branch_id: number | null }>(
+    'SELECT id, branch_id FROM users'
+  );
   await clearDatabase(db);
 
   for (const branch of data.branches) {
@@ -457,9 +655,9 @@ async function writeStoreToDatabase(db: DatabaseExecutor, payload: StoreData) {
       `
         INSERT INTO branches (
           id, name, code, description, establish_date, renewal_reminder_date,
-          secretary_id, secretary_name, status, committee_members
+          secretary_id, secretary_name, status, contact_phone, remark, committee_members
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
       `,
       [
         branch.id,
@@ -471,6 +669,8 @@ async function writeStoreToDatabase(db: DatabaseExecutor, payload: StoreData) {
         branch.secretary_id ?? null,
         branch.secretary_name,
         branch.status,
+        branch.contact_phone ?? '',
+        branch.remark ?? '',
         toJson(branch.committee_members),
       ]
     );
@@ -481,10 +681,10 @@ async function writeStoreToDatabase(db: DatabaseExecutor, payload: StoreData) {
       `
         INSERT INTO members (
           id, name, gender, birthday, department, position, political_status,
-          join_date, regular_date, last_fee_month, status, branch_id,
+          join_date, regular_date, last_fee_month, status, branch_id, user_id,
           phone, email, remarks, avatar_url
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
       `,
       [
         member.id,
@@ -499,6 +699,7 @@ async function writeStoreToDatabase(db: DatabaseExecutor, payload: StoreData) {
         member.last_fee_month,
         member.status,
         member.branch_id,
+        member.user_id ?? null,
         member.phone,
         member.email,
         member.remarks,
@@ -611,6 +812,22 @@ async function writeStoreToDatabase(db: DatabaseExecutor, payload: StoreData) {
         file.storedFileName,
         file.relativePath,
       ]
+    );
+  }
+
+  for (const userRef of userBranchRefs.rows) {
+    if (!userRef.branch_id) {
+      continue;
+    }
+
+    await db.query(
+      `
+        UPDATE users
+        SET branch_id = $2, updated_at = NOW()
+        WHERE id = $1
+          AND EXISTS (SELECT 1 FROM branches WHERE id = $2)
+      `,
+      [userRef.id, userRef.branch_id]
     );
   }
 }

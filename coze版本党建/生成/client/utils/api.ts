@@ -13,6 +13,10 @@ export interface AuthSessionUser {
   role_label: string;
   branch_id?: number;
   branch_name?: string;
+  member_id?: number;
+  mobile?: string;
+  status?: string;
+  is_demo?: boolean;
 }
 
 export interface DemoAccount {

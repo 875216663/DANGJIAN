@@ -53,71 +53,56 @@ const FALLBACK_DEMO_ACCOUNTS: DemoAccount[] = [
     user_id: 1,
     username: 'leader01',
     password: '123456',
-    description: '党委管理员账号，可查看和维护全部支部与党员信息。',
+    description: '党委领导账号，可查看全公司总览、支部和党员总体情况，只读访问。',
     user: {
       id: 1,
-      name: '张书记',
+      name: '党委领导',
       username: 'leader01',
-      role: 'party_committee',
-      role_label: '党委管理员',
+      role: 'committee_leader',
+      role_label: '党委领导',
     },
   },
   {
     user_id: 2,
-    username: 'office01',
+    username: 'admin01',
     password: '123456',
-    description: '第一支部管理员账号，仅维护综合管理党支部的数据。',
+    description: '党建纪检部账号，可创建党支部、创建党员，并同步生成普通党员账号。',
     user: {
       id: 2,
-      name: '李委员',
-      username: 'office01',
-      role: 'branch_secretary',
-      role_label: '支部管理员',
-      branch_id: 1,
-      branch_name: '综合管理党支部',
+      name: '党建纪检部',
+      username: 'admin01',
+      role: 'party_admin',
+      role_label: '党建纪检部',
     },
   },
   {
     user_id: 3,
-    username: 'branch01',
+    username: 'secretary01',
     password: '123456',
-    description: '第二支部管理员账号，仅维护研发运营党支部的数据。',
+    description: '党支部书记/委员账号，只能查看本支部党员，并可新增本支部党员。',
     user: {
       id: 3,
-      name: '王纪检',
-      username: 'branch01',
+      name: '第一支部书记',
+      username: 'secretary01',
       role: 'branch_secretary',
-      role_label: '支部管理员',
-      branch_id: 2,
-      branch_name: '研发运营党支部',
+      role_label: '党支部书记/委员',
+      branch_id: 1,
+      branch_name: '综合管理党支部',
     },
   },
   {
     user_id: 4,
     username: 'member01',
     password: '123456',
-    description: '支部只读账号，可查看本支部信息，但不可新增、编辑或删除。',
+    description: '普通党员账号，仅可查看本人的党员档案信息。',
     user: {
       id: 4,
-      name: '赵同志',
+      name: '普通党员',
       username: 'member01',
-      role: 'branch_member',
-      role_label: '支部只读账号',
+      role: 'party_member',
+      role_label: '普通党员',
       branch_id: 1,
       branch_name: '综合管理党支部',
-    },
-  },
-  {
-    user_id: 5,
-    username: 'admin01',
-    password: '123456',
-    description: '巡检管理员账号，可跨支部查看与巡检数据。',
-    user: {
-      id: 5,
-      name: '巡检管理员',
-      username: 'admin01',
-      role: 'party_inspection',
-      role_label: '巡检管理员',
     },
   },
 ];
@@ -316,10 +301,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   if (isLoading) {
     return (
       <AuthContext.Provider value={value}>
-        <View className="flex-1 items-center justify-center bg-gray-950">
+        <View className="flex-1 items-center justify-center bg-red-50">
           <ActivityIndicator size="large" color="#DC2626" />
-          <Text className="mt-4 text-base text-white">正在连接党建数据中心...</Text>
-          <Text className="mt-2 text-sm text-gray-400">{getRequestUrl(getApiUrl('/api/v1/health'))}</Text>
+          <Text className="mt-4 text-base text-red-700">正在连接党建数据中心...</Text>
+          <Text className="mt-2 text-sm text-red-400">{getRequestUrl(getApiUrl('/api/v1/health'))}</Text>
         </View>
       </AuthContext.Provider>
     );
@@ -329,12 +314,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
       <AuthContext.Provider value={value}>
         <ScrollView
-          className="flex-1 bg-gray-950"
+          className="flex-1 bg-red-50"
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingVertical: 32 }}
           keyboardShouldPersistTaps="handled"
         >
           <View className="min-h-full justify-center">
-            <View className="rounded-3xl border border-red-950/40 bg-red-900 px-5 py-6">
+            <View className="rounded-3xl border border-red-200 bg-red-700 px-5 py-6">
               <Text className="text-sm text-red-100">智慧党建基础信息管理系统</Text>
               <Text className="mt-2 text-3xl font-bold text-white">账号登录</Text>
               <Text className="mt-3 text-sm leading-6 text-red-100">
@@ -344,30 +329,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             </View>
 
             {bootstrapError ? (
-              <View className="mt-5 rounded-3xl border border-yellow-900/40 bg-yellow-950/30 p-5">
-                <Text className="text-base font-semibold text-yellow-300">后端连接异常</Text>
-                <Text className="mt-2 text-sm leading-6 text-yellow-100">{bootstrapError}</Text>
+              <View className="mt-5 rounded-3xl border border-yellow-200 bg-white p-5">
+                <Text className="text-base font-semibold text-yellow-700">后端连接异常</Text>
+                <Text className="mt-2 text-sm leading-6 text-yellow-800">{bootstrapError}</Text>
                 <TouchableOpacity
                   onPress={refreshSession}
-                  className="mt-4 rounded-2xl border border-yellow-700 bg-yellow-900/40 px-4 py-3"
+                  className="mt-4 rounded-2xl border border-yellow-300 bg-yellow-50 px-4 py-3"
                 >
-                  <Text className="text-center font-medium text-white">重新检测连接</Text>
+                  <Text className="text-center font-medium text-yellow-800">重新检测连接</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
 
-            <View className="mt-5 rounded-3xl border border-gray-800 bg-gray-900 p-5">
-              <Text className="text-base font-semibold text-white">登录系统</Text>
-              <Text className="mt-2 text-sm text-gray-400">
-                当前版本支持党委管理员、支部管理员、巡检管理员和只读账号，不同账号进入后看到的按钮与数据范围会不同。
+            <View className="mt-5 rounded-3xl border border-red-100 bg-white p-5">
+              <Text className="text-base font-semibold text-red-700">登录系统</Text>
+              <Text className="mt-2 text-sm text-slate-500">
+                当前版本支持四类核心角色：党委领导、党建纪检部、党支部书记/委员、普通党员。
               </Text>
 
               <View className="mt-5">
-                <Text className="mb-2 text-sm text-gray-400">账号</Text>
+                <Text className="mb-2 text-sm text-slate-500">账号</Text>
                 <TextInput
-                  className="rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-white"
+                  className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
                   placeholder="请输入账号"
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor="#94A3B8"
                   autoCapitalize="none"
                   value={username}
                   onChangeText={setUsername}
@@ -375,11 +360,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               </View>
 
               <View className="mt-4">
-                <Text className="mb-2 text-sm text-gray-400">密码</Text>
+                <Text className="mb-2 text-sm text-slate-500">密码</Text>
                 <TextInput
-                  className="rounded-2xl border border-gray-700 bg-gray-800 px-4 py-3 text-white"
+                  className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
                   placeholder="请输入密码"
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor="#94A3B8"
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
@@ -389,7 +374,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               {loginError ? (
                 <Text className="mt-3 text-sm text-red-400">{loginError}</Text>
               ) : (
-                <Text className="mt-3 text-xs text-gray-500">
+                <Text className="mt-3 text-xs text-slate-500">
                   默认演示密码均为 `123456`
                 </Text>
               )}
@@ -403,9 +388,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                       setPassword(account.password);
                       setLoginError('');
                     }}
-                    className="mb-2 mr-2 rounded-full border border-gray-700 bg-gray-800 px-3 py-2"
+                    className="mb-2 mr-2 rounded-full border border-red-100 bg-red-50 px-3 py-2"
                   >
-                    <Text className="text-xs text-white">{account.username}</Text>
+                    <Text className="text-xs text-red-700">{account.username}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -423,9 +408,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               </TouchableOpacity>
             </View>
 
-            <View className="mt-5 rounded-3xl border border-gray-800 bg-gray-900 p-5">
-              <Text className="text-base font-semibold text-white">演示账号</Text>
-              <Text className="mt-2 text-sm text-gray-400">
+            <View className="mt-5 rounded-3xl border border-red-100 bg-white p-5">
+              <Text className="text-base font-semibold text-red-700">演示账号</Text>
+              <Text className="mt-2 text-sm text-slate-500">
                 点击下方账号可一键填充，或直接登录体验不同权限与不同数据范围。
               </Text>
 
@@ -433,19 +418,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 {displayedAccounts.map((account) => (
                   <View
                     key={account.username}
-                    className="mb-3 rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4"
+                    className="mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-4"
                   >
                     <View className="flex-row items-center justify-between">
                       <View className="flex-1">
-                        <Text className="font-semibold text-white">{account.user.name}</Text>
+                        <Text className="font-semibold text-slate-900">{account.user.name}</Text>
                         <Text className="mt-1 text-xs text-red-300">
                           {account.user.role_label}
                           {account.user.branch_name ? ` · ${account.user.branch_name}` : ''}
                         </Text>
-                        <Text className="mt-1 text-sm text-gray-400">
+                        <Text className="mt-1 text-sm text-slate-600">
                           账号：{account.username} · 密码：{account.password}
                         </Text>
-                        <Text className="mt-2 text-xs leading-5 text-gray-500">
+                        <Text className="mt-2 text-xs leading-5 text-slate-500">
                           {account.description}
                         </Text>
                       </View>
@@ -457,9 +442,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                           setPassword(account.password);
                           setLoginError('');
                         }}
-                        className="mr-3 flex-1 rounded-xl border border-gray-700 bg-gray-900 px-3 py-3"
+                        className="mr-3 flex-1 rounded-xl border border-red-200 bg-white px-3 py-3"
                       >
-                        <Text className="text-center text-xs font-medium text-white">一键填充</Text>
+                        <Text className="text-center text-xs font-medium text-red-700">一键填充</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={async () => {
@@ -467,7 +452,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                           setPassword(account.password);
                           await login(account.username, account.password);
                         }}
-                        className="flex-1 rounded-xl bg-gray-800 px-3 py-3"
+                        className="flex-1 rounded-xl bg-red-700 px-3 py-3"
                       >
                         <Text className="text-center text-xs font-medium text-white">快捷登录</Text>
                       </TouchableOpacity>

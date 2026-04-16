@@ -12,6 +12,7 @@ import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
+import { canEditMember } from '@/utils/rbac';
 
 export default function MemberDetail() {
   const router = useSafeRouter();
@@ -19,7 +20,7 @@ export default function MemberDetail() {
   const { id } = useSafeSearchParams<{ id: string }>();
   const [member, setMember] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
+  const canManage = canEditMember(user);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -85,7 +86,7 @@ export default function MemberDetail() {
   if (loading) {
     return (
       <Screen>
-        <View className="flex-1 bg-gray-900 items-center justify-center">
+        <View className="flex-1 bg-red-50 items-center justify-center">
           <FontAwesome6 name="spinner" size={40} color="#DC2626" />
         </View>
       </Screen>
@@ -95,7 +96,7 @@ export default function MemberDetail() {
   if (!member) {
     return (
       <Screen>
-        <View className="flex-1 bg-gray-900 items-center justify-center">
+        <View className="flex-1 bg-red-50 items-center justify-center">
           <FontAwesome6 name="user-slash" size={60} color="#374151" />
           <Text className="text-gray-500 mt-4">党员信息不存在</Text>
         </View>
@@ -105,7 +106,7 @@ export default function MemberDetail() {
 
   return (
     <Screen>
-      <View className="flex-1 bg-gray-900">
+      <View className="flex-1 bg-red-50">
         {/* 顶部栏 */}
         <View className="bg-red-900 px-4 pt-12 pb-4">
           <View className="flex-row items-center justify-between">
@@ -122,15 +123,15 @@ export default function MemberDetail() {
         <ScrollView className="flex-1">
           {/* 基本信息 */}
           <View className="px-4 py-4">
-            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
+            <View className="bg-white rounded-xl p-4 border border-red-100 mb-4">
               <View className="flex-row items-center space-x-4 mb-4">
                 <View className="w-16 h-16 rounded-full bg-red-900 items-center justify-center">
                   <FontAwesome6 name="user" size={32} color="white" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-white font-bold text-xl">{member.name}</Text>
-                  <Text className="text-gray-400 text-sm mt-1">{member.department}</Text>
-                  <Text className="text-gray-500 text-xs mt-1">{member.position}</Text>
+                  <Text className="text-slate-900 font-bold text-xl">{member.name}</Text>
+                  <Text className="text-slate-500 text-sm mt-1">{member.department}</Text>
+                  <Text className="text-slate-400 text-xs mt-1">{member.position}</Text>
                 </View>
               </View>
 
@@ -153,8 +154,8 @@ export default function MemberDetail() {
             </View>
 
             {/* 详细信息 */}
-            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
-              <Text className="text-white font-bold text-lg mb-4">详细信息</Text>
+            <View className="bg-white rounded-xl p-4 border border-red-100 mb-4">
+              <Text className="text-red-700 font-bold text-lg mb-4">详细信息</Text>
 
                 <View className="space-y-4">
                   <DetailRow label="性别" value={member.gender || '-'} />
@@ -165,8 +166,8 @@ export default function MemberDetail() {
             </View>
 
             {/* 党籍信息 */}
-            <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
-              <Text className="text-white font-bold text-lg mb-4">党籍信息</Text>
+            <View className="bg-white rounded-xl p-4 border border-red-100 mb-4">
+              <Text className="text-red-700 font-bold text-lg mb-4">党籍信息</Text>
 
               <View className="space-y-4">
                 <DetailRow label="入党日期" value={member.join_date || '-'} />
@@ -182,9 +183,9 @@ export default function MemberDetail() {
 
             {/* 备注信息 */}
             {member.remarks && (
-              <View className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-4">
-                <Text className="text-white font-bold text-lg mb-4">备注</Text>
-                <Text className="text-gray-400">{member.remarks}</Text>
+              <View className="bg-white rounded-xl p-4 border border-red-100 mb-4">
+                <Text className="text-red-700 font-bold text-lg mb-4">备注</Text>
+                <Text className="text-slate-500">{member.remarks}</Text>
               </View>
             )}
           </View>
@@ -192,7 +193,7 @@ export default function MemberDetail() {
 
         {/* 底部操作栏 */}
         {canManage && (
-          <View className="bg-gray-800 border-t border-gray-700 px-4 py-3 flex-row">
+          <View className="bg-white border-t border-red-100 px-4 py-3 flex-row">
             <TouchableOpacity
               onPress={() => router.push('/member-edit', { id })}
               className="mr-3 flex-1 rounded-lg bg-red-900 py-3"
@@ -215,8 +216,8 @@ export default function MemberDetail() {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row justify-between">
-      <Text className="text-gray-400 w-28">{label}</Text>
-      <Text className="text-gray-200 flex-1">{value}</Text>
+      <Text className="text-slate-500 w-28">{label}</Text>
+      <Text className="text-slate-700 flex-1">{value}</Text>
     </View>
   );
 }
@@ -242,7 +243,7 @@ function DetailRowWithStatus({ label, value, status }: { label: string; value: s
 
   return (
     <View className="flex-row justify-between">
-      <Text className="text-gray-400 w-28">{label}</Text>
+      <Text className="text-slate-500 w-28">{label}</Text>
       <Text className="flex-1" style={{ color: statusColor }}>
         {value}
       </Text>

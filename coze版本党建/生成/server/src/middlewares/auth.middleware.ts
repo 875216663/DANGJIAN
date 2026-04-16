@@ -1,13 +1,18 @@
 import type { NextFunction, Request, Response } from 'express';
 import { env, isProduction } from '../config/env';
-import { USER_DIRECTORY } from '../models/auth.model';
 import { AppError } from '../utils/app-error';
 import { verifyAuthToken } from '../utils/token';
+import {
+  canViewAllData,
+  normalizeRoleCode,
+  type RoleCode,
+} from '../utils/rbac';
 
 export interface CurrentUserContext {
   userId: number;
-  role: string;
+  role: RoleCode;
   branchId?: number;
+  memberId?: number;
   username?: string;
 }
 
@@ -26,13 +31,20 @@ function buildContextFromLegacyHeaders(req: Request): CurrentUserContext | null 
     return null;
   }
 
-  const profile = USER_DIRECTORY[userId];
   return {
     userId,
-    role: (Array.isArray(req.headers['x-user-role']) ? req.headers['x-user-role'][0] : req.headers['x-user-role']) || profile?.role || 'member',
+    role: normalizeRoleCode(
+      (Array.isArray(req.headers['x-user-role'])
+        ? req.headers['x-user-role'][0]
+        : req.headers['x-user-role']) || undefined
+    ),
     branchId: req.headers['x-user-branch-id']
-      ? Number(Array.isArray(req.headers['x-user-branch-id']) ? req.headers['x-user-branch-id'][0] : req.headers['x-user-branch-id'])
-      : profile?.branch_id,
+      ? Number(
+          Array.isArray(req.headers['x-user-branch-id'])
+            ? req.headers['x-user-branch-id'][0]
+            : req.headers['x-user-branch-id']
+        )
+      : undefined,
   };
 }
 
@@ -47,14 +59,11 @@ export function authenticate(req: AuthenticatedRequest, _res: Response, next: Ne
       return next(new AppError(401, '登录状态已失效，请重新登录'));
     }
 
-    if (!USER_DIRECTORY[payload.userId]) {
-      return next(new AppError(401, '当前登录用户不存在'));
-    }
-
     req.auth = {
       userId: payload.userId,
-      role: payload.role,
+      role: normalizeRoleCode(payload.role),
       branchId: payload.branchId,
+      memberId: payload.memberId,
       username: payload.username,
     };
     return next();
@@ -73,7 +82,10 @@ export function authenticate(req: AuthenticatedRequest, _res: Response, next: Ne
 
 export function requireRoles(...allowedRoles: string[]) {
   return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    if (!req.auth?.role || !allowedRoles.includes(req.auth.role)) {
+    if (
+      !req.auth?.role ||
+      !allowedRoles.map((role) => normalizeRoleCode(role)).includes(req.auth.role)
+    ) {
       return next(new AppError(403, '权限不足'));
     }
 
@@ -85,7 +97,7 @@ export function resolveBranchScope(
   currentUser: CurrentUserContext,
   requestedBranchId?: number
 ) {
-  if (currentUser.role === 'party_committee' || currentUser.role === 'party_inspection') {
+  if (canViewAllData(currentUser.role)) {
     return requestedBranchId;
   }
 

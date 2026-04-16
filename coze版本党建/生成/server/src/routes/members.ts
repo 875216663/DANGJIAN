@@ -35,21 +35,21 @@ router.get(
 router.post(
   '/import',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin', 'branch_secretary'),
   memberImportUpload.single('file'),
   asyncHandler(memberController.importMembers)
 );
 router.post(
   '/',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin', 'branch_secretary'),
   validateRequest(memberMutationSchema, 'body'),
   asyncHandler(memberController.createMember)
 );
 router.put(
   '/:id',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin', 'branch_secretary'),
   validateRequest(idParamSchema, 'params'),
   validateRequest(memberUpdateSchema, 'body'),
   asyncHandler(memberController.updateMember)
@@ -57,7 +57,7 @@ router.put(
 router.delete(
   '/:id',
   authenticate,
-  requireRoles('party_committee', 'party_inspection', 'branch_secretary'),
+  requireRoles('party_admin', 'branch_secretary'),
   validateRequest(idParamSchema, 'params'),
   asyncHandler(memberController.deleteMember)
 );

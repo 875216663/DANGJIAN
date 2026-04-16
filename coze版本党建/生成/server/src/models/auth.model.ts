@@ -1,84 +1,107 @@
 import type { StoreData } from './types';
+import {
+  ROLE_CODES,
+  ROLE_LABELS,
+  normalizeRoleCode,
+  type RoleCode,
+} from '../utils/rbac';
 
 export interface AuthUserRecord {
   id: number;
+  username: string;
   name: string;
-  role: string;
+  role: RoleCode;
+  role_label: string;
   branch_id?: number;
+  branch_name?: string;
+  member_id?: number;
+  mobile?: string;
+  status?: string;
+  is_demo?: boolean;
 }
 
 export interface DemoAccountRecord {
-  user_id: number;
   username: string;
   password: string;
   description: string;
+  user: AuthUserRecord;
 }
 
-export const ROLE_LABELS: Record<string, string> = {
-  party_committee: '党委管理员',
-  party_inspection: '巡检管理员',
-  branch_secretary: '支部管理员',
-  branch_member: '支部只读账号',
-  member: '普通党员账号',
-};
+export interface DemoAccountSeed {
+  username: string;
+  name: string;
+  role: RoleCode;
+  description: string;
+  useFirstBranch?: boolean;
+  bindFirstBranchMember?: boolean;
+}
 
-export const USER_DIRECTORY: Record<number, AuthUserRecord> = {
-  1: { id: 1, name: '张书记', role: 'party_committee' },
-  2: { id: 2, name: '李委员', role: 'branch_secretary', branch_id: 1 },
-  3: { id: 3, name: '王纪检', role: 'branch_secretary', branch_id: 2 },
-  4: { id: 4, name: '赵同志', role: 'branch_member', branch_id: 1 },
-  5: { id: 5, name: '巡检管理员', role: 'party_inspection' },
-};
-
-export const DEMO_ACCOUNT_DIRECTORY: DemoAccountRecord[] = [
+export const DEMO_ACCOUNT_SEEDS: DemoAccountSeed[] = [
   {
-    user_id: 1,
     username: 'leader01',
-    password: '123456',
-    description: '党委管理员账号，可查看和维护全部支部与党员信息。',
+    name: '党委领导',
+    role: ROLE_CODES.committeeLeader,
+    description: '查看全局看板、党支部和党员总体情况，只读访问。',
   },
   {
-    user_id: 2,
-    username: 'office01',
-    password: '123456',
-    description: '第一支部管理员账号，仅维护综合管理党支部的数据。',
-  },
-  {
-    user_id: 3,
-    username: 'branch01',
-    password: '123456',
-    description: '第二支部管理员账号，仅维护研发运营党支部的数据。',
-  },
-  {
-    user_id: 4,
-    username: 'member01',
-    password: '123456',
-    description: '支部只读账号，可查看本支部信息，但不可新增、编辑或删除。',
-  },
-  {
-    user_id: 5,
     username: 'admin01',
-    password: '123456',
-    description: '巡检管理员账号，可跨支部查看与巡检数据。',
+    name: '党建纪检部',
+    role: ROLE_CODES.partyAdmin,
+    description: '可创建党支部、维护党员，并在新增党员时同步生成账号。',
+  },
+  {
+    username: 'secretary01',
+    name: '第一支部书记',
+    role: ROLE_CODES.branchSecretary,
+    description: '仅查看和维护本支部党员，可新增本支部党员。',
+    useFirstBranch: true,
+  },
+  {
+    username: 'member01',
+    name: '普通党员',
+    role: ROLE_CODES.partyMember,
+    description: '只查看本人的党员档案，无创建和编辑权限。',
+    useFirstBranch: true,
+    bindFirstBranchMember: true,
   },
 ];
+
+const FALLBACK_USER_NAME_BY_ID: Record<number, string> = {
+  1: '党委领导',
+  2: '党建纪检部',
+  3: '第一支部书记',
+  4: '普通党员',
+};
 
 export function getUserDisplayName(userId?: number) {
   if (!userId) {
     return '系统用户';
   }
 
-  return USER_DIRECTORY[userId]?.name ?? `用户${userId}`;
+  return FALLBACK_USER_NAME_BY_ID[userId] ?? `用户${userId}`;
 }
 
-export function toUserView(user: AuthUserRecord, store: StoreData) {
-  const account = DEMO_ACCOUNT_DIRECTORY.find((item) => item.user_id === user.id);
+export function toUserView(
+  user: Partial<AuthUserRecord> & Pick<AuthUserRecord, 'id' | 'name' | 'username'>,
+  store?: StoreData
+): AuthUserRecord {
+  const role = normalizeRoleCode(user.role);
+
   return {
-    ...user,
-    username: account?.username,
-    role_label: ROLE_LABELS[user.role] || user.role,
-    branch_name: user.branch_id
-      ? store.branches.find((branch) => branch.id === user.branch_id)?.name
-      : undefined,
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    role,
+    role_label: ROLE_LABELS[role],
+    branch_id: user.branch_id,
+    branch_name:
+      user.branch_name ??
+      (user.branch_id
+        ? store?.branches.find((branch) => branch.id === user.branch_id)?.name
+        : undefined),
+    member_id: user.member_id,
+    mobile: user.mobile,
+    status: user.status,
+    is_demo: user.is_demo,
   };
 }

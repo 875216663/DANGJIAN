@@ -58,6 +58,7 @@ export const memberMutationSchema = z.object({
   regular_date: optionalDate.default(''),
   last_fee_month: optionalMonth.default(''),
   status: optionalTrimmedString.default('active'),
+  branch_id: z.coerce.number().int().positive().optional(),
   branch_name: optionalTrimmedString.default(''),
   phone: optionalTrimmedString.default(''),
   email: optionalEmail.default(''),
@@ -77,11 +78,13 @@ export const branchMutationSchema = z.object({
   name: z.string().trim().min(1, '请输入支部名称'),
   code: z.string().trim().min(1, '请输入支部代码'),
   description: optionalTrimmedString.default(''),
+  contact_phone: optionalTrimmedString.default(''),
   establish_date: optionalDate.default(''),
   renewal_reminder_date: optionalDate.default(''),
   secretary_id: z.coerce.number().int().positive().optional(),
   secretary_name: optionalTrimmedString.default(''),
   status: optionalTrimmedString.default('active'),
+  remark: optionalTrimmedString.default(''),
 });
 
 export const branchUpdateSchema = branchMutationSchema.partial();

@@ -8,16 +8,19 @@ export interface BranchRecord {
   name: string;
   code: string;
   description: string;
+  contact_phone?: string;
   establish_date: string;
   renewal_reminder_date: string;
   secretary_id?: number;
   secretary_name: string;
   status: string;
+  remark?: string;
   committee_members: CommitteeMember[];
 }
 
 export interface MemberRecord {
   id: number;
+  user_id?: number;
   name: string;
   gender: string;
   birthday: string;

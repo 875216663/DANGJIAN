@@ -1,12 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Modal,
   Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -16,6 +16,7 @@ import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { createFormDataFile } from '@/utils';
 import { getApiMessage, getApiUrl, requestJson } from '@/utils/api';
+import { canCreateMember, isPartyMember } from '@/utils/rbac';
 
 export default function Members() {
   const router = useSafeRouter();
@@ -27,19 +28,20 @@ export default function Members() {
   const [statusFilter, setStatusFilter] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
+  const [selectedFile, setSelectedFile] =
+    useState<DocumentPicker.DocumentPickerResult | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const canManage = user?.role !== 'member' && user?.role !== 'branch_member';
 
-  // 加载党员列表
+  const allowCreate = canCreateMember(user);
+
   const loadMembers = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: '1',
         limit: '1000',
-        ...(searchKeyword && { search: searchKeyword }),
-        ...(statusFilter && { status: statusFilter }),
+        ...(searchKeyword ? { search: searchKeyword } : {}),
+        ...(statusFilter ? { status: statusFilter } : {}),
       });
 
       const { data, meta } = await requestJson<any[]>(`/api/v1/members?${params.toString()}`);
@@ -62,46 +64,44 @@ export default function Members() {
     }, [loadMembers])
   );
 
-  // 导出数据
   const handleExport = async () => {
     try {
       const response = await fetch(getApiUrl('/api/v1/members/export'));
-
-      if (response.ok) {
-        await response.blob();
-        Alert.alert('成功', '导出成功');
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        Alert.alert('导出失败', getApiMessage(payload, '请稍后重试'));
         return;
       }
 
-      const maybePayload = await response.json().catch(() => null);
-      Alert.alert('错误', getApiMessage(maybePayload, '导出失败'));
+      Alert.alert('导出成功', '党员数据已由浏览器开始下载');
     } catch (error) {
-      console.error('Export error:', error);
-      Alert.alert('错误', '导出失败');
+      console.error('Export members error:', error);
+      Alert.alert('导出失败', '网络异常，请稍后重试');
     }
   };
 
-  // 选择导入文件
   const pickImportFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'],
+        type: [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+        ],
         copyToCacheDirectory: true,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      if (!result.canceled && result.assets?.length) {
         setSelectedFile(result);
       }
     } catch (error) {
-      console.error('Pick file error:', error);
-      Alert.alert('错误', '选择文件失败');
+      console.error('Pick import file error:', error);
+      Alert.alert('选择失败', '文件选择失败，请稍后重试');
     }
   };
 
-  // 确认导入
   const handleImport = async () => {
-    if (!selectedFile || !selectedFile.assets || selectedFile.assets.length === 0) {
-      Alert.alert('提示', '请先选择文件');
+    if (!selectedFile?.assets?.length) {
+      Alert.alert('提示', '请先选择要导入的 Excel 文件');
       return;
     }
 
@@ -109,7 +109,6 @@ export default function Members() {
       setImporting(true);
       const asset = selectedFile.assets[0];
       const formData = new FormData();
-
       const file = await createFormDataFile(
         asset.uri,
         asset.name,
@@ -117,218 +116,150 @@ export default function Members() {
       );
       formData.append('file', file as any);
 
-      /**
-       * 服务端文件：server/src/routes/members.ts
-       * 接口：POST /api/v1/members/import
-       * Body 参数：file: File
-       */
       const response = await fetch(getApiUrl('/api/v1/members/import'), {
         method: 'POST',
         body: formData,
       });
       const payload = await response.json().catch(() => null);
 
-      if (response.ok) {
-        Alert.alert('成功', getApiMessage(payload, '导入成功'));
-        setShowImportModal(false);
-        setSelectedFile(null);
-        loadMembers();
-      } else {
-        Alert.alert('错误', getApiMessage(payload, '导入失败'));
+      if (!response.ok) {
+        Alert.alert('导入失败', getApiMessage(payload, '请稍后重试'));
+        return;
       }
+
+      Alert.alert('导入成功', getApiMessage(payload, '党员导入成功'));
+      setSelectedFile(null);
+      setShowImportModal(false);
+      await loadMembers();
     } catch (error) {
-      console.error('Import error:', error);
-      Alert.alert('错误', '导入失败');
+      console.error('Import members error:', error);
+      Alert.alert('导入失败', '网络异常，请稍后重试');
     } finally {
       setImporting(false);
     }
   };
 
-  // 状态颜色映射
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return '#10B981';
-      case 'probationary':
-        return '#F59E0B';
-      case 'transferred_out':
-        return '#6B7280';
-      case 'suspended':
-        return '#EF4444';
-      default:
-        return '#6B7280';
-    }
-  };
-
-  // 状态文本映射
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active':
-        return '正常';
-      case 'probationary':
-        return '预备党员';
-      case 'transferred_out':
-        return '转出';
-      case 'suspended':
-        return '停止党籍';
-      default:
-        return status;
-    }
-  };
-
   return (
     <Screen>
-      <View className="flex-1 bg-gray-900">
-        {/* 顶部栏 */}
-        <View className="bg-red-900 px-4 pt-12 pb-4">
+      <View className="flex-1 bg-red-50">
+        <View className="bg-red-700 px-4 pb-4 pt-12">
           <View className="flex-row items-center justify-between">
             <TouchableOpacity onPress={() => router.back()}>
-              <FontAwesome6 name="arrow-left" size={24} color="white" />
+              <FontAwesome6 name="arrow-left" size={20} color="white" />
             </TouchableOpacity>
-            <Text className="text-white font-bold text-lg">党员管理</Text>
-            {canManage ? (
+            <Text className="text-lg font-bold text-white">党员管理</Text>
+            {allowCreate ? (
               <TouchableOpacity onPress={() => router.push('/member-edit')}>
-                <FontAwesome6 name="plus" size={22} color="white" />
+                <FontAwesome6 name="plus" size={20} color="white" />
               </TouchableOpacity>
             ) : (
-              <View className="w-6" />
+              <View className="w-5" />
             )}
           </View>
+          <Text className="mt-3 text-xs text-red-100">
+            {allowCreate
+              ? '新增党员时会自动创建对应登录账号，账号默认初始密码统一配置。'
+              : isPartyMember(user)
+              ? '当前账号仅展示个人党员档案。'
+              : '当前账号为查看型角色，不显示党员新增入口。'}
+          </Text>
         </View>
 
-        {/* 搜索栏 */}
-        <View className="px-4 py-3 bg-gray-800">
-          <View className="flex-row items-center space-x-3">
-            <View className="flex-1 flex-row items-center bg-gray-700 rounded-lg px-3 py-2">
-              <FontAwesome6 name="magnifying-glass" size={16} color="#9CA3AF" />
+        <View className="px-4 py-4">
+          <View className="rounded-2xl border border-red-100 bg-white px-3 py-3">
+            <View className="flex-row items-center">
+              <FontAwesome6 name="magnifying-glass" size={16} color="#94A3B8" />
               <TextInput
-                className="flex-1 ml-2 text-white"
-                placeholder="搜索姓名、部门..."
-                placeholderTextColor="#6B7280"
+                className="ml-2 flex-1 text-slate-900"
+                placeholder="搜索姓名、部门、支部或手机号"
+                placeholderTextColor="#94A3B8"
                 value={searchKeyword}
                 onChangeText={setSearchKeyword}
               />
-            </View>
-            <TouchableOpacity
-              onPress={() => setShowFilterModal(true)}
-              className="bg-gray-700 px-4 py-2 rounded-lg"
-            >
-              <FontAwesome6 name="filter" size={18} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* 操作栏 */}
-        <View className="px-4 py-2 flex-row justify-between items-center">
-          <Text className="text-gray-400 text-sm">共 {totalCount} 名党员</Text>
-          <View className="flex-row space-x-2">
-            {canManage && (
-              <TouchableOpacity
-                onPress={() => setShowImportModal(true)}
-                className="bg-red-900 px-4 py-2 rounded-lg flex-row items-center"
-              >
-                <FontAwesome6 name="file-import" size={16} color="white" />
-                <Text className="text-white text-sm ml-2">导入</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(true)}>
+                <FontAwesome6 name="filter" size={18} color="#DC2626" />
               </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={handleExport}
-              className="bg-gray-700 px-4 py-2 rounded-lg flex-row items-center"
-            >
-              <FontAwesome6 name="file-export" size={16} color="white" />
-              <Text className="text-white text-sm ml-2">导出</Text>
-            </TouchableOpacity>
+            </View>
+          </View>
+
+          <View className="mt-4 flex-row items-center justify-between rounded-2xl border border-red-100 bg-white px-4 py-3">
+            <Text className="text-sm text-slate-500">当前共 {totalCount} 名党员</Text>
+            <View className="flex-row">
+              {allowCreate ? (
+                <TouchableOpacity
+                  onPress={() => setShowImportModal(true)}
+                  className="mr-2 rounded-full border border-red-200 bg-red-50 px-3 py-2"
+                >
+                  <Text className="text-xs font-medium text-red-700">导入</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                onPress={handleExport}
+                className="rounded-full border border-red-200 bg-red-50 px-3 py-2"
+              >
+                <Text className="text-xs font-medium text-red-700">导出</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
-        {/* 列表 */}
-        <ScrollView className="flex-1 px-4 py-2">
+        <ScrollView className="flex-1 px-4 pb-6">
           {loading ? (
-            <View className="py-20 items-center">
-              <FontAwesome6 name="spinner" size={40} color="#DC2626" />
-              <Text className="text-gray-500 mt-2">加载中...</Text>
-            </View>
+            <EmptyState icon="spinner" title="正在加载党员数据..." />
           ) : members.length === 0 ? (
-            <View className="py-20 items-center">
-              <FontAwesome6 name="users-slash" size={60} color="#374151" />
-              <Text className="text-gray-500 mt-4">暂无数据</Text>
-              {canManage && (
-                <TouchableOpacity
-                  onPress={() => router.push('/member-edit')}
-                  className="mt-4 rounded-lg bg-red-900 px-6 py-3"
-                >
-                  <Text className="text-white">新增党员</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <EmptyState
+              icon="users"
+              title={allowCreate ? '暂无党员数据，请先新增党员' : '当前暂无可查看的党员数据'}
+              actionLabel={allowCreate ? '新建党员' : undefined}
+              onPress={allowCreate ? () => router.push('/member-edit') : undefined}
+            />
           ) : (
-            members.map((member, index) => (
+            members.map((member) => (
               <TouchableOpacity
                 key={member.id}
-                className="bg-gray-800 rounded-xl p-4 mb-3 border border-gray-700"
+                className="mb-3 rounded-3xl border border-red-100 bg-white p-4"
                 onPress={() => router.push('/member-detail', { id: member.id })}
               >
-                <View className="flex-row justify-between items-start mb-2">
+                <View className="flex-row items-start justify-between">
                   <View className="flex-1">
-                    <View className="flex-row items-center space-x-2">
-                      <Text className="text-white font-bold text-lg">{member.name}</Text>
-                      <View
-                        className="px-2 py-0.5 rounded"
-                        style={{ backgroundColor: getStatusColor(member.status) + '20' }}
-                      >
-                        <Text
-                          className="text-xs font-medium"
-                          style={{ color: getStatusColor(member.status) }}
-                        >
-                          {getStatusText(member.status)}
+                    <View className="flex-row items-center">
+                      <Text className="text-base font-semibold text-slate-900">{member.name}</Text>
+                      <View className="ml-2 rounded-full bg-red-50 px-2 py-1">
+                        <Text className="text-xs text-red-700">
+                          {member.status === 'active' ? '正式党员' : member.status}
                         </Text>
                       </View>
                     </View>
-                    <Text className="text-gray-400 text-sm mt-1">{member.department}</Text>
-                    <Text className="text-gray-500 text-xs">{member.position}</Text>
-                  </View>
-                  <FontAwesome6 name="chevron-right" size={16} color="#6B7280" />
-                </View>
-
-                <View className="flex-row space-x-4 mt-3 pt-3 border-t border-gray-700">
-                  <View className="flex-1">
-                    <Text className="text-gray-500 text-xs">政治面貌</Text>
-                    <Text className="text-gray-300 text-sm mt-1">{member.political_status}</Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-500 text-xs">入党日期</Text>
-                    <Text className="text-gray-300 text-sm mt-1">
-                      {member.join_date ? new Date(member.join_date).toLocaleDateString() : '-'}
+                    <Text className="mt-2 text-sm text-slate-600">
+                      {member.branch_name || '未分配支部'} · {member.department || '未设置部门'}
+                    </Text>
+                    <Text className="mt-1 text-xs text-slate-500">
+                      {member.position || '未设置职务'}
+                      {member.phone ? ` · ${member.phone}` : ''}
                     </Text>
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-500 text-xs">所属支部</Text>
-                    <Text className="text-gray-300 text-sm mt-1">{member.branch_name}</Text>
-                  </View>
+                  <FontAwesome6 name="chevron-right" size={14} color="#94A3B8" />
                 </View>
               </TouchableOpacity>
             ))
           )}
         </ScrollView>
 
-        {/* 筛选弹窗 */}
         <Modal visible={showFilterModal} transparent animationType="slide">
-          <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-gray-800 rounded-t-3xl p-6">
-              <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-white font-bold text-lg">筛选条件</Text>
+          <View className="flex-1 justify-end bg-black/20">
+            <View className="rounded-t-3xl bg-white p-6">
+              <View className="mb-6 flex-row items-center justify-between">
+                <Text className="text-lg font-bold text-red-700">筛选党员状态</Text>
                 <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                  <FontAwesome6 name="xmark" size={24} color="white" />
+                  <FontAwesome6 name="xmark" size={20} color="#B91C1C" />
                 </TouchableOpacity>
               </View>
-
-              <Text className="text-gray-400 mb-3">党员状态</Text>
-              <View className="grid grid-cols-2 gap-3 mb-6">
+              <View className="grid grid-cols-2 gap-3">
                 {[
                   { value: '', label: '全部' },
-                  { value: 'active', label: '正常' },
+                  { value: 'active', label: '正式党员' },
                   { value: 'probationary', label: '预备党员' },
-                  { value: 'transferred_out', label: '转出' },
+                  { value: 'transferred_out', label: '已转出' },
                 ].map((item) => (
                   <TouchableOpacity
                     key={item.value}
@@ -336,15 +267,15 @@ export default function Members() {
                       setStatusFilter(item.value);
                       setShowFilterModal(false);
                     }}
-                    className={`py-3 rounded-lg border ${
+                    className={`rounded-2xl border px-4 py-3 ${
                       statusFilter === item.value
-                        ? 'border-red-500 bg-red-900/20'
-                        : 'border-gray-700 bg-gray-700'
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-red-100 bg-white'
                     }`}
                   >
                     <Text
-                      className={`text-center ${
-                        statusFilter === item.value ? 'text-red-500' : 'text-gray-300'
+                      className={`text-center font-medium ${
+                        statusFilter === item.value ? 'text-red-700' : 'text-slate-500'
                       }`}
                     >
                       {item.label}
@@ -352,90 +283,69 @@ export default function Members() {
                   </TouchableOpacity>
                 ))}
               </View>
-
-              <TouchableOpacity
-                onPress={() => {
-                  setStatusFilter('');
-                  setSearchKeyword('');
-                  setShowFilterModal(false);
-                }}
-                className="bg-gray-700 py-3 rounded-lg"
-              >
-                <Text className="text-white text-center">重置筛选</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
-        {/* 导入弹窗 */}
         <Modal visible={showImportModal} transparent animationType="slide">
-          <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-gray-800 rounded-t-3xl p-6">
-              <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-white font-bold text-lg">导入党员信息</Text>
+          <View className="flex-1 justify-end bg-black/20">
+            <View className="rounded-t-3xl bg-white p-6">
+              <View className="mb-6 flex-row items-center justify-between">
+                <Text className="text-lg font-bold text-red-700">批量导入党员</Text>
                 <TouchableOpacity onPress={() => setShowImportModal(false)}>
-                  <FontAwesome6 name="xmark" size={24} color="white" />
+                  <FontAwesome6 name="xmark" size={20} color="#B91C1C" />
                 </TouchableOpacity>
               </View>
+              <Text className="text-sm leading-6 text-slate-500">
+                仅当前允许导入基础党员信息；本次重点交付仍以“单个新增党员并同步创建账号”为主。
+              </Text>
 
-              {/* 选择文件 */}
               <TouchableOpacity
-                className="bg-gray-700 rounded-xl p-4 mb-4 border-2 border-dashed border-gray-600"
                 onPress={pickImportFile}
+                className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-4"
               >
-                {selectedFile && selectedFile.assets && selectedFile.assets.length > 0 ? (
-                  <View className="flex-row items-center">
-                    <FontAwesome6 name="file-circle-check" size={24} color="#10B981" />
-                    <View className="flex-1 ml-3">
-                      <Text className="text-white font-medium" numberOfLines={1}>
-                        {selectedFile.assets[0].name}
-                      </Text>
-                    </View>
-                    <FontAwesome6 name="circle-check" size={20} color="#10B981" />
-                  </View>
-                ) : (
-                  <View className="flex-row items-center justify-center">
-                    <FontAwesome6 name="cloud-arrow-up" size={24} color="#DC2626" />
-                    <Text className="text-gray-300 ml-2">点击选择Excel文件</Text>
-                  </View>
-                )}
+                <Text className="text-center font-medium text-red-700">
+                  {selectedFile?.assets?.[0]?.name || '选择 Excel 文件'}
+                </Text>
               </TouchableOpacity>
 
-              {/* Excel模板说明 */}
-              <View className="bg-gray-700/50 rounded-lg p-3 mb-4">
-                <Text className="text-gray-300 text-sm mb-2">Excel模板要求：</Text>
-                <Text className="text-gray-400 text-xs">
-                  必需字段：姓名、部门、政治面貌、入党日期、党费缴纳年月
+              <TouchableOpacity
+                onPress={handleImport}
+                disabled={importing}
+                className="mt-4 rounded-2xl bg-red-700 px-4 py-4"
+              >
+                <Text className="text-center font-medium text-white">
+                  {importing ? '导入中...' : '开始导入'}
                 </Text>
-                <Text className="text-gray-400 text-xs mt-1">
-                  可选字段：性别、职务、转正日期、联系电话、邮箱、所属支部、状态
-                </Text>
-              </View>
-
-              {/* 操作按钮 */}
-              <View className="space-y-3">
-                <TouchableOpacity
-                  className="bg-red-900 rounded-xl py-3 items-center"
-                  onPress={handleImport}
-                  disabled={importing || !selectedFile}
-                >
-                  {importing ? (
-                    <Text className="text-white text-center font-medium">导入中...</Text>
-                  ) : (
-                    <Text className="text-white text-center font-medium">开始导入</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="bg-gray-700 rounded-xl py-3 items-center"
-                  onPress={() => setShowImportModal(false)}
-                >
-                  <Text className="text-white text-center">取消</Text>
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
       </View>
     </Screen>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  actionLabel,
+  onPress,
+}: {
+  icon: any;
+  title: string;
+  actionLabel?: string;
+  onPress?: () => void;
+}) {
+  return (
+    <View className="items-center rounded-3xl border border-red-100 bg-white px-4 py-16">
+      <FontAwesome6 name={icon} size={40} color="#F87171" />
+      <Text className="mt-4 text-sm text-slate-500">{title}</Text>
+      {actionLabel && onPress ? (
+        <TouchableOpacity onPress={onPress} className="mt-4 rounded-full bg-red-700 px-5 py-3">
+          <Text className="font-medium text-white">{actionLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
