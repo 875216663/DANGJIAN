@@ -15,18 +15,19 @@ export interface DemoAccountRecord {
 }
 
 export const ROLE_LABELS: Record<string, string> = {
-  party_committee: '系统管理员',
-  party_inspection: '系统管理员',
-  branch_secretary: '系统管理员',
-  branch_member: '系统管理员',
-  member: '系统管理员',
+  party_committee: '党委管理员',
+  party_inspection: '巡检管理员',
+  branch_secretary: '支部管理员',
+  branch_member: '支部只读账号',
+  member: '普通党员账号',
 };
 
 export const USER_DIRECTORY: Record<number, AuthUserRecord> = {
-  1: { id: 1, name: '张书记', role: 'party_committee', branch_id: 1 },
-  2: { id: 2, name: '李委员', role: 'party_committee', branch_id: 1 },
-  3: { id: 3, name: '王纪检', role: 'party_committee', branch_id: 2 },
-  4: { id: 4, name: '党委管理员', role: 'party_committee' },
+  1: { id: 1, name: '张书记', role: 'party_committee' },
+  2: { id: 2, name: '李委员', role: 'branch_secretary', branch_id: 1 },
+  3: { id: 3, name: '王纪检', role: 'branch_secretary', branch_id: 2 },
+  4: { id: 4, name: '赵同志', role: 'branch_member', branch_id: 1 },
+  5: { id: 5, name: '巡检管理员', role: 'party_inspection' },
 };
 
 export const DEMO_ACCOUNT_DIRECTORY: DemoAccountRecord[] = [
@@ -34,25 +35,31 @@ export const DEMO_ACCOUNT_DIRECTORY: DemoAccountRecord[] = [
     user_id: 1,
     username: 'leader01',
     password: '123456',
-    description: '默认演示账号，可查看和维护全部基础信息。',
+    description: '党委管理员账号，可查看和维护全部支部与党员信息。',
   },
   {
     user_id: 2,
     username: 'office01',
     password: '123456',
-    description: '党委办公室账号，适合日常党员档案维护演示。',
+    description: '第一支部管理员账号，仅维护综合管理党支部的数据。',
   },
   {
     user_id: 3,
     username: 'branch01',
     password: '123456',
-    description: '基层支部账号，用于展示不同支部的数据视角。',
+    description: '第二支部管理员账号，仅维护研发运营党支部的数据。',
   },
   {
     user_id: 4,
+    username: 'member01',
+    password: '123456',
+    description: '支部只读账号，可查看本支部信息，但不可新增、编辑或删除。',
+  },
+  {
+    user_id: 5,
     username: 'admin01',
     password: '123456',
-    description: '系统管理员账号，用于完整流程演示。',
+    description: '巡检管理员账号，可跨支部查看与巡检数据。',
   },
 ];
 

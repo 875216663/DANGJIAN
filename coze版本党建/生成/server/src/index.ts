@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getAllowedOrigins } from './config/env';
+import { isOriginAllowed } from './config/env';
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/not-found.middleware';
 import { requestLogger } from './middlewares/request-logger.middleware';
@@ -20,7 +20,9 @@ const app = express();
 
 app.use(
   cors({
-    origin: getAllowedOrigins(),
+    origin(origin, callback) {
+      callback(null, isOriginAllowed(origin));
+    },
     credentials: false,
   })
 );

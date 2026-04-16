@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -47,6 +48,88 @@ interface AuthContextType {
 const AUTH_TOKEN_KEY = 'dangjian-auth-token-v3';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const FALLBACK_DEMO_ACCOUNTS: DemoAccount[] = [
+  {
+    user_id: 1,
+    username: 'leader01',
+    password: '123456',
+    description: '党委管理员账号，可查看和维护全部支部与党员信息。',
+    user: {
+      id: 1,
+      name: '张书记',
+      username: 'leader01',
+      role: 'party_committee',
+      role_label: '党委管理员',
+    },
+  },
+  {
+    user_id: 2,
+    username: 'office01',
+    password: '123456',
+    description: '第一支部管理员账号，仅维护综合管理党支部的数据。',
+    user: {
+      id: 2,
+      name: '李委员',
+      username: 'office01',
+      role: 'branch_secretary',
+      role_label: '支部管理员',
+      branch_id: 1,
+      branch_name: '综合管理党支部',
+    },
+  },
+  {
+    user_id: 3,
+    username: 'branch01',
+    password: '123456',
+    description: '第二支部管理员账号，仅维护研发运营党支部的数据。',
+    user: {
+      id: 3,
+      name: '王纪检',
+      username: 'branch01',
+      role: 'branch_secretary',
+      role_label: '支部管理员',
+      branch_id: 2,
+      branch_name: '研发运营党支部',
+    },
+  },
+  {
+    user_id: 4,
+    username: 'member01',
+    password: '123456',
+    description: '支部只读账号，可查看本支部信息，但不可新增、编辑或删除。',
+    user: {
+      id: 4,
+      name: '赵同志',
+      username: 'member01',
+      role: 'branch_member',
+      role_label: '支部只读账号',
+      branch_id: 1,
+      branch_name: '综合管理党支部',
+    },
+  },
+  {
+    user_id: 5,
+    username: 'admin01',
+    password: '123456',
+    description: '巡检管理员账号，可跨支部查看与巡检数据。',
+    user: {
+      id: 5,
+      name: '巡检管理员',
+      username: 'admin01',
+      role: 'party_inspection',
+      role_label: '巡检管理员',
+    },
+  },
+];
+
+function getFriendlyNetworkMessage(rawMessage: string, backendBaseUrl: string) {
+  if (/Failed to fetch|Network request failed|Load failed/i.test(rawMessage)) {
+    return `无法连接后端服务。请确认前端环境变量 EXPO_PUBLIC_BACKEND_BASE_URL 指向 ${backendBaseUrl}，并在 Railway 中将 CORS_ORIGIN 设置为当前前端域名。`;
+  }
+
+  return rawMessage;
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthSessionUser | null>(null);
   const [users, setUsers] = useState<AuthSessionUser[]>([]);
@@ -58,6 +141,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [password, setPassword] = useState('');
   const [loginPending, setLoginPending] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [bootstrapError, setBootstrapError] = useState('');
   const originalFetchRef = useRef(globalThis.fetch.bind(globalThis));
 
   const backendBaseUrl = useMemo(() => getBackendBaseUrl(), []);
@@ -75,6 +159,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       setUsers(usersResult.data);
       setAccounts(accountsResult.data);
+      setBootstrapError('');
       setStorageMode(
         healthResult.data.storage ||
         (healthResult.payload && typeof healthResult.payload === 'object' && 'storage' in (healthResult.payload as Record<string, unknown>)
@@ -113,10 +198,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setToken(null);
       setUser(null);
       setStorageMode('unknown');
+      setBootstrapError(
+        getFriendlyNetworkMessage(
+          error instanceof Error ? error.message : '初始化失败',
+          backendBaseUrl
+        )
+      );
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [backendBaseUrl]);
 
   useEffect(() => {
     refreshSession();
@@ -180,14 +271,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       return { ok: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : '登录失败，请稍后重试';
+      const message = getFriendlyNetworkMessage(
+        error instanceof Error ? error.message : '登录失败，请稍后重试',
+        backendBaseUrl
+      );
       console.error('Login error:', error);
       setLoginError(message);
       return { ok: false, error: message };
     } finally {
       setLoginPending(false);
     }
-  }, []);
+  }, [backendBaseUrl]);
 
   const logout = useCallback(async () => {
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
@@ -217,6 +311,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updateUser,
   };
 
+  const displayedAccounts = accounts.length > 0 ? accounts : FALLBACK_DEMO_ACCOUNTS;
+
   if (isLoading) {
     return (
       <AuthContext.Provider value={value}>
@@ -232,21 +328,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   if (!user || !token) {
     return (
       <AuthContext.Provider value={value}>
-        <View className="flex-1 bg-gray-950 px-5 py-8">
-          <View className="flex-1 justify-center">
+        <ScrollView
+          className="flex-1 bg-gray-950"
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingVertical: 32 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="min-h-full justify-center">
             <View className="rounded-3xl border border-red-950/40 bg-red-900 px-5 py-6">
               <Text className="text-sm text-red-100">智慧党建基础信息管理系统</Text>
               <Text className="mt-2 text-3xl font-bold text-white">账号登录</Text>
               <Text className="mt-3 text-sm leading-6 text-red-100">
-                保留登录体验与演示账号，同时底层接入真实后端与数据库。登录后默认进入 dashboard。
+                不同账号会进入不同权限与数据视角。登录后默认进入 dashboard，并直接连接真实后端与数据库。
               </Text>
               <Text className="mt-4 text-xs text-red-100">{backendBaseUrl}</Text>
             </View>
 
+            {bootstrapError ? (
+              <View className="mt-5 rounded-3xl border border-yellow-900/40 bg-yellow-950/30 p-5">
+                <Text className="text-base font-semibold text-yellow-300">后端连接异常</Text>
+                <Text className="mt-2 text-sm leading-6 text-yellow-100">{bootstrapError}</Text>
+                <TouchableOpacity
+                  onPress={refreshSession}
+                  className="mt-4 rounded-2xl border border-yellow-700 bg-yellow-900/40 px-4 py-3"
+                >
+                  <Text className="text-center font-medium text-white">重新检测连接</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             <View className="mt-5 rounded-3xl border border-gray-800 bg-gray-900 p-5">
               <Text className="text-base font-semibold text-white">登录系统</Text>
               <Text className="mt-2 text-sm text-gray-400">
-                当前版本为单一管理角色系统，不同账号使用不同用户名登录，但进入后具备一致的管理权限。
+                当前版本支持党委管理员、支部管理员、巡检管理员和只读账号，不同账号进入后看到的按钮与数据范围会不同。
               </Text>
 
               <View className="mt-5">
@@ -281,6 +394,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 </Text>
               )}
 
+              <View className="mt-4 flex-row flex-wrap">
+                {displayedAccounts.map((account) => (
+                  <TouchableOpacity
+                    key={`quick-fill-${account.username}`}
+                    onPress={() => {
+                      setUsername(account.username);
+                      setPassword(account.password);
+                      setLoginError('');
+                    }}
+                    className="mb-2 mr-2 rounded-full border border-gray-700 bg-gray-800 px-3 py-2"
+                  >
+                    <Text className="text-xs text-white">{account.username}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               <TouchableOpacity
                 disabled={loginPending}
                 onPress={async () => {
@@ -297,23 +426,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             <View className="mt-5 rounded-3xl border border-gray-800 bg-gray-900 p-5">
               <Text className="text-base font-semibold text-white">演示账号</Text>
               <Text className="mt-2 text-sm text-gray-400">
-                点击下方账号可自动填充用户名和密码，快速体验系统。
+                点击下方账号可一键填充，或直接登录体验不同权限与不同数据范围。
               </Text>
 
               <View className="mt-4">
-                {accounts.map((account) => (
-                  <TouchableOpacity
+                {displayedAccounts.map((account) => (
+                  <View
                     key={account.username}
-                    onPress={() => {
-                      setUsername(account.username);
-                      setPassword(account.password);
-                      setLoginError('');
-                    }}
                     className="mb-3 rounded-2xl border border-gray-800 bg-gray-950 px-4 py-4"
                   >
                     <View className="flex-row items-center justify-between">
                       <View className="flex-1">
                         <Text className="font-semibold text-white">{account.user.name}</Text>
+                        <Text className="mt-1 text-xs text-red-300">
+                          {account.user.role_label}
+                          {account.user.branch_name ? ` · ${account.user.branch_name}` : ''}
+                        </Text>
                         <Text className="mt-1 text-sm text-gray-400">
                           账号：{account.username} · 密码：{account.password}
                         </Text>
@@ -321,23 +449,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                           {account.description}
                         </Text>
                       </View>
+                    </View>
+                    <View className="mt-4 flex-row">
+                      <TouchableOpacity
+                        onPress={() => {
+                          setUsername(account.username);
+                          setPassword(account.password);
+                          setLoginError('');
+                        }}
+                        className="mr-3 flex-1 rounded-xl border border-gray-700 bg-gray-900 px-3 py-3"
+                      >
+                        <Text className="text-center text-xs font-medium text-white">一键填充</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         onPress={async () => {
                           setUsername(account.username);
                           setPassword(account.password);
                           await login(account.username, account.password);
                         }}
-                        className="ml-3 rounded-xl bg-gray-800 px-3 py-2"
+                        className="flex-1 rounded-xl bg-gray-800 px-3 py-3"
                       >
-                        <Text className="text-xs font-medium text-white">快捷登录</Text>
+                        <Text className="text-center text-xs font-medium text-white">快捷登录</Text>
                       </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 ))}
               </View>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </AuthContext.Provider>
     );
   }

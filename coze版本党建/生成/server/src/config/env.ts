@@ -36,12 +36,37 @@ export const env = parsed.data;
 
 export const isProduction = env.NODE_ENV === 'production';
 
-export function getAllowedOrigins() {
+function getConfiguredOrigins() {
+  return env.CORS_ORIGIN.split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function isOriginAllowed(origin?: string) {
+  if (!origin) {
+    return true;
+  }
+
   if (env.CORS_ORIGIN.trim() === '*') {
     return true;
   }
 
-  return env.CORS_ORIGIN.split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
+  if (getConfiguredOrigins().includes(origin)) {
+    return true;
+  }
+
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return true;
+    }
+
+    if (hostname.endsWith('.vercel.app')) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }

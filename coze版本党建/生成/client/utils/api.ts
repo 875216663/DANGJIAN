@@ -1,4 +1,7 @@
-const DEFAULT_BACKEND_BASE_URL = 'http://localhost:9091';
+const DEFAULT_BACKEND_BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'https://secure-harmony-production-ca68.up.railway.app'
+    : 'http://localhost:9091';
 
 export type StorageMode = 'database' | 'local-file' | 'unknown';
 
