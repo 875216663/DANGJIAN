@@ -484,22 +484,17 @@ export async function createMember(payload: MemberMutationPayload, currentUser: 
     );
 
     const userId = Number(createdUser.rows[0]?.id ?? 0);
-    const nextMemberIdResult = await client.query<{ id: string }>(
-      'SELECT COALESCE(MAX(id), 0)::text AS id FROM members'
-    );
-    const nextMemberId = Number(nextMemberIdResult.rows[0]?.id ?? '0') + 1;
-
-    await client.query(
+    const createdMember = await client.query<{ id: number }>(
       `
         INSERT INTO members (
-          id, user_id, branch_id, name, gender, birthday, department, position,
+          user_id, branch_id, name, gender, birthday, department, position,
           political_status, join_date, regular_date, last_fee_month, status,
           phone, email, remarks, avatar_url
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        RETURNING id
       `,
       [
-        nextMemberId,
         userId,
         branch.id,
         payload.name?.trim() || '',
@@ -518,6 +513,7 @@ export async function createMember(payload: MemberMutationPayload, currentUser: 
         payload.avatar_url?.trim() || '',
       ]
     );
+    const nextMemberId = Number(createdMember.rows[0]?.id ?? 0);
 
     await client.query('COMMIT');
     logger.info('Created member with synchronized account', {
@@ -539,6 +535,17 @@ export async function createMember(payload: MemberMutationPayload, currentUser: 
     };
   } catch (error) {
     await client.query('ROLLBACK');
+    logger.error('Create member with synchronized account failed', {
+      operatorId: currentUser.userId,
+      role: currentUser.role,
+      branchId: currentUser.branchId,
+      payload: {
+        name: payload.name,
+        branch_id: payload.branch_id,
+        phone: payload.phone,
+      },
+      error,
+    });
     throw error;
   } finally {
     client.release();

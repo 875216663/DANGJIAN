@@ -355,6 +355,22 @@ async function ensureDatabaseSchema(db: DatabaseExecutor) {
     ALTER TABLE branches ADD COLUMN IF NOT EXISTS remark TEXT NOT NULL DEFAULT '';
     ALTER TABLE members ADD COLUMN IF NOT EXISTS user_id INTEGER NULL;
 
+    CREATE SEQUENCE IF NOT EXISTS branches_id_seq;
+    ALTER TABLE branches ALTER COLUMN id SET DEFAULT nextval('branches_id_seq');
+    SELECT setval(
+      'branches_id_seq',
+      COALESCE((SELECT MAX(id) FROM branches), 0) + 1,
+      false
+    );
+
+    CREATE SEQUENCE IF NOT EXISTS members_id_seq;
+    ALTER TABLE members ALTER COLUMN id SET DEFAULT nextval('members_id_seq');
+    SELECT setval(
+      'members_id_seq',
+      COALESCE((SELECT MAX(id) FROM members), 0) + 1,
+      false
+    );
+
     DO $$
     BEGIN
       IF NOT EXISTS (

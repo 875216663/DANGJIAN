@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
@@ -7,6 +15,8 @@ import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { requestJson } from '@/utils/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { canCreateBranch } from '@/utils/rbac';
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function BranchEdit() {
   const router = useSafeRouter();
@@ -79,16 +89,39 @@ export default function BranchEdit() {
       return;
     }
 
+    if (branch.establish_date.trim() && !DATE_PATTERN.test(branch.establish_date.trim())) {
+      Alert.alert('提示', '成立日期格式需为 YYYY-MM-DD');
+      return;
+    }
+
+    if (
+      branch.renewal_reminder_date.trim() &&
+      !DATE_PATTERN.test(branch.renewal_reminder_date.trim())
+    ) {
+      Alert.alert('提示', '换届提醒日期格式需为 YYYY-MM-DD');
+      return;
+    }
+
     try {
       setLoading(true);
       await requestJson(isEdit ? `/api/v1/branches/${id}` : '/api/v1/branches', {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(branch),
+        body: JSON.stringify({
+          ...branch,
+          name: branch.name.trim(),
+          code: branch.code.trim(),
+          secretary_name: branch.secretary_name.trim(),
+          contact_phone: branch.contact_phone.trim(),
+          establish_date: branch.establish_date.trim(),
+          renewal_reminder_date: branch.renewal_reminder_date.trim(),
+          description: branch.description.trim(),
+          remark: branch.remark.trim(),
+        }),
       });
 
       Alert.alert('保存成功', isEdit ? '党支部信息已更新' : '党支部已创建并写入数据库', [
-        { text: '确定', onPress: () => router.back() },
+        { text: '确定', onPress: () => router.replace('/branches') },
       ]);
     } catch (error) {
       console.error('Save branch error:', error);
@@ -100,8 +133,8 @@ export default function BranchEdit() {
 
   return (
     <Screen>
-      <View className="flex-1 bg-red-50">
-        <View className="bg-red-700 px-4 pb-4 pt-12">
+      <View className="flex-1 bg-[#FFF7F5]">
+        <View className="bg-red-800 px-4 pb-4 pt-12">
           <View className="flex-row items-center justify-between">
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={20} color="white" />
@@ -113,10 +146,17 @@ export default function BranchEdit() {
               <Text className="font-semibold text-white">{loading ? '保存中' : '保存'}</Text>
             </TouchableOpacity>
           </View>
+
+          <View className="mt-4 rounded-3xl bg-white/10 px-4 py-4">
+            <Text className="text-sm font-semibold text-white">组织基础信息维护</Text>
+            <Text className="mt-2 text-xs leading-5 text-red-100">
+              支部创建成功后会直接写入数据库，并立即出现在支部列表和首页统计中，建议同步维护书记、联系电话和换届提醒日期。
+            </Text>
+          </View>
         </View>
 
-        <ScrollView className="flex-1 px-4 py-4">
-          <SectionCard title="基础信息">
+        <ScrollView className="flex-1 px-4 py-4" contentContainerStyle={{ paddingBottom: 40 }}>
+          <SectionCard title="基础信息" subtitle="用于首页看板、支部列表、党员归属和组织统计。">
             <FormItem label="支部名称 *" value={branch.name} onChangeText={(name) => setBranch({ ...branch, name })} />
             <FormItem label="支部代码 *" value={branch.code} onChangeText={(code) => setBranch({ ...branch, code })} />
             <FormItem
@@ -130,21 +170,25 @@ export default function BranchEdit() {
               onChangeText={(contact_phone) => setBranch({ ...branch, contact_phone })}
               keyboardType="phone-pad"
             />
-            <DateField
+            <DateLikeInput
               label="成立日期"
               value={branch.establish_date}
-              onPress={() => setShowDatePicker(true)}
-              icon="calendar"
+              placeholder="YYYY-MM-DD"
+              helperText="网页端可直接手动输入，例如 2024-01-01。"
+              onChangeText={(establish_date) => setBranch({ ...branch, establish_date })}
+              onOpenPicker={Platform.OS === 'web' ? undefined : () => setShowDatePicker(true)}
             />
-            <DateField
+            <DateLikeInput
               label="换届提醒日期"
               value={branch.renewal_reminder_date}
-              onPress={() => setShowRenewalPicker(true)}
-              icon="calendar-days"
+              placeholder="YYYY-MM-DD"
+              helperText="用于首页提醒与支部详情提示。"
+              onChangeText={(renewal_reminder_date) => setBranch({ ...branch, renewal_reminder_date })}
+              onOpenPicker={Platform.OS === 'web' ? undefined : () => setShowRenewalPicker(true)}
             />
           </SectionCard>
 
-          <SectionCard title="支部说明">
+          <SectionCard title="支部说明" subtitle="建议补充职责范围和备注信息，便于后续管理。">
             <MultilineItem
               label="支部职责描述"
               value={branch.description}
@@ -155,11 +199,11 @@ export default function BranchEdit() {
               label="补充备注"
               value={branch.remark}
               onChangeText={(remark) => setBranch({ ...branch, remark })}
-              placeholder="可填写换届安排、年度重点事项等。"
+              placeholder="例如：换届安排、年度重点任务、特殊说明等。"
             />
           </SectionCard>
 
-          <SectionCard title="支部状态">
+          <SectionCard title="支部状态" subtitle="正常支部会进入首页统计，停用支部仅保留档案。">
             <View className="flex-row">
               {[
                 { value: 'active', label: '正常' },
@@ -187,7 +231,7 @@ export default function BranchEdit() {
           </SectionCard>
         </ScrollView>
 
-        {showDatePicker ? (
+        {Platform.OS !== 'web' && showDatePicker ? (
           <DateTimePicker
             value={toDate(branch.establish_date)}
             mode="date"
@@ -201,7 +245,7 @@ export default function BranchEdit() {
           />
         ) : null}
 
-        {showRenewalPicker ? (
+        {Platform.OS !== 'web' && showRenewalPicker ? (
           <DateTimePicker
             value={toDate(branch.renewal_reminder_date)}
             mode="date"
@@ -219,11 +263,20 @@ export default function BranchEdit() {
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <View className="mb-4 rounded-3xl border border-red-100 bg-white p-4">
-      <Text className="mb-4 text-base font-semibold text-red-700">{title}</Text>
-      <View>{children}</View>
+    <View className="mb-4 rounded-[28px] border border-red-100 bg-white p-4">
+      <Text className="text-base font-semibold text-red-700">{title}</Text>
+      {subtitle ? <Text className="mt-2 text-xs leading-5 text-slate-500">{subtitle}</Text> : null}
+      <View className="mt-4">{children}</View>
     </View>
   );
 }
@@ -243,7 +296,7 @@ function FormItem({
     <View className="mb-4">
       <Text className="mb-2 text-sm text-slate-500">{label}</Text>
       <TextInput
-        className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
+        className="rounded-3xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType || 'default'}
@@ -269,7 +322,7 @@ function MultilineItem({
     <View className="mb-4">
       <Text className="mb-2 text-sm text-slate-500">{label}</Text>
       <TextInput
-        className="h-24 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
+        className="h-28 rounded-3xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -281,25 +334,40 @@ function MultilineItem({
   );
 }
 
-function DateField({
+function DateLikeInput({
   label,
   value,
-  onPress,
-  icon,
+  placeholder,
+  helperText,
+  onChangeText,
+  onOpenPicker,
 }: {
   label: string;
   value: string;
-  onPress: () => void;
-  icon: any;
+  placeholder: string;
+  helperText?: string;
+  onChangeText: (text: string) => void;
+  onOpenPicker?: () => void;
 }) {
   return (
-    <TouchableOpacity onPress={onPress} className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-      <Text className="mb-1 text-sm text-slate-500">{label}</Text>
-      <View className="flex-row items-center justify-between">
-        <Text className={value ? 'text-slate-900' : 'text-slate-400'}>{value || '请选择日期'}</Text>
-        <FontAwesome6 name={icon} size={14} color="#DC2626" />
+    <View className="mb-4">
+      <Text className="mb-2 text-sm text-slate-500">{label}</Text>
+      <View className="flex-row items-center rounded-3xl border border-red-100 bg-red-50 px-4 py-2">
+        <TextInput
+          className="flex-1 py-1 text-slate-900"
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+        />
+        {onOpenPicker ? (
+          <TouchableOpacity onPress={onOpenPicker} className="ml-3 rounded-full bg-white px-3 py-2">
+            <FontAwesome6 name="calendar" size={14} color="#B91C1C" />
+          </TouchableOpacity>
+        ) : null}
       </View>
-    </TouchableOpacity>
+      {helperText ? <Text className="mt-2 text-xs leading-5 text-slate-500">{helperText}</Text> : null}
+    </View>
   );
 }
 
@@ -311,7 +379,7 @@ function formatDate(date: Date) {
 }
 
 function toDate(value: string) {
-  if (!value) {
+  if (!value || !DATE_PATTERN.test(value)) {
     return new Date();
   }
 

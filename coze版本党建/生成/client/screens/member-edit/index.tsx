@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
@@ -7,6 +15,9 @@ import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { requestJson } from '@/utils/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { canCreateMember, isBranchSecretary } from '@/utils/rbac';
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_PATTERN = /^\d{4}-\d{2}$/;
 
 export default function MemberEdit() {
   const router = useSafeRouter();
@@ -17,6 +28,7 @@ export default function MemberEdit() {
   const [loading, setLoading] = useState(false);
   const [showJoinDatePicker, setShowJoinDatePicker] = useState(false);
   const [showRegularDatePicker, setShowRegularDatePicker] = useState(false);
+  const [showBirthdayPicker, setShowBirthdayPicker] = useState(false);
   const [showFeeMonthPicker, setShowFeeMonthPicker] = useState(false);
   const [member, setMember] = useState({
     name: '',
@@ -37,12 +49,13 @@ export default function MemberEdit() {
   });
 
   const branchLocked = isBranchSecretary(user);
-  const selectedBranchName = useMemo(() => {
-    if (member.branch_id) {
-      return branches.find((branch) => branch.id === member.branch_id)?.name || member.branch_name;
-    }
-    return member.branch_name;
-  }, [branches, member.branch_id, member.branch_name]);
+
+  const selectedBranch = useMemo(
+    () => branches.find((branch) => Number(branch.id) === Number(member.branch_id)),
+    [branches, member.branch_id]
+  );
+
+  const selectedBranchName = selectedBranch?.name || member.branch_name;
 
   useEffect(() => {
     if (!canCreateMember(user)) {
@@ -56,7 +69,7 @@ export default function MemberEdit() {
     if (isEdit) {
       void loadMemberDetail();
     }
-  }, [id, user]);
+  }, [id, isEdit, user]);
 
   const loadBranches = async () => {
     try {
@@ -65,16 +78,19 @@ export default function MemberEdit() {
       setBranches(nextBranches);
 
       if (!member.branch_id && user?.branch_id) {
-        const ownBranch = nextBranches.find((branch) => branch.id === user.branch_id);
-        setMember((current) => ({
-          ...current,
-          branch_id: ownBranch?.id || current.branch_id,
-          branch_name: ownBranch?.name || current.branch_name,
-        }));
+        const ownBranch = nextBranches.find((branch) => Number(branch.id) === Number(user.branch_id));
+        if (ownBranch) {
+          setMember((current) => ({
+            ...current,
+            branch_id: Number(ownBranch.id),
+            branch_name: ownBranch.name,
+          }));
+        }
       }
     } catch (error) {
       console.error('Load branches error:', error);
       setBranches([]);
+      Alert.alert('支部加载失败', '未能加载党支部列表，请确认后端服务和当前账号权限正常。');
     }
   };
 
@@ -117,8 +133,23 @@ export default function MemberEdit() {
       return;
     }
 
-    if (!member.join_date.trim()) {
-      Alert.alert('提示', '请选择入党日期');
+    if (!member.join_date.trim() || !DATE_PATTERN.test(member.join_date.trim())) {
+      Alert.alert('提示', '请输入正确的入党日期，格式为 YYYY-MM-DD');
+      return;
+    }
+
+    if (member.birthday.trim() && !DATE_PATTERN.test(member.birthday.trim())) {
+      Alert.alert('提示', '出生日期格式需为 YYYY-MM-DD');
+      return;
+    }
+
+    if (member.regular_date.trim() && !DATE_PATTERN.test(member.regular_date.trim())) {
+      Alert.alert('提示', '转正日期格式需为 YYYY-MM-DD');
+      return;
+    }
+
+    if (member.last_fee_month.trim() && !MONTH_PATTERN.test(member.last_fee_month.trim())) {
+      Alert.alert('提示', '党费缴纳年月格式需为 YYYY-MM');
       return;
     }
 
@@ -127,28 +158,46 @@ export default function MemberEdit() {
       return;
     }
 
+    const payload = {
+      ...member,
+      name: member.name.trim(),
+      birthday: member.birthday.trim(),
+      department: member.department.trim(),
+      position: member.position.trim(),
+      phone: member.phone.trim(),
+      email: member.email.trim(),
+      political_status: member.political_status.trim(),
+      join_date: member.join_date.trim(),
+      regular_date: member.regular_date.trim(),
+      branch_name: selectedBranchName || member.branch_name,
+      last_fee_month: member.last_fee_month.trim(),
+      remarks: member.remarks.trim(),
+    };
+
     try {
       setLoading(true);
       const { data } = await requestJson<any>(isEdit ? `/api/v1/members/${id}` : '/api/v1/members', {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...member,
-          branch_name: selectedBranchName,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!isEdit && data?.account) {
         Alert.alert(
           '创建成功',
-          `党员信息已落库，并同步生成账号。\n账号：${data.account.username}\n初始密码：${data.account.default_password}`,
-          [{ text: '确定', onPress: () => router.back() }]
+          `党员信息已落库，并已同步生成系统账号。\n\n账号：${data.account.username}\n初始密码：${data.account.default_password}\n所属角色：${data.account.role_label}\n所属支部：${selectedBranchName || '未分配'}`,
+          [
+            {
+              text: '查看党员列表',
+              onPress: () => router.replace('/members'),
+            },
+          ]
         );
         return;
       }
 
       Alert.alert('保存成功', isEdit ? '党员信息已更新' : '党员已创建', [
-        { text: '确定', onPress: () => router.back() },
+        { text: '确定', onPress: () => router.replace('/members') },
       ]);
     } catch (error) {
       console.error('Save member error:', error);
@@ -160,8 +209,8 @@ export default function MemberEdit() {
 
   return (
     <Screen>
-      <View className="flex-1 bg-red-50">
-        <View className="bg-red-700 px-4 pb-4 pt-12">
+      <View className="flex-1 bg-[#FFF7F5]">
+        <View className="bg-red-800 px-4 pb-4 pt-12">
           <View className="flex-row items-center justify-between">
             <TouchableOpacity onPress={() => router.back()}>
               <FontAwesome6 name="arrow-left" size={20} color="white" />
@@ -171,17 +220,35 @@ export default function MemberEdit() {
               <Text className="font-semibold text-white">{loading ? '保存中' : '保存'}</Text>
             </TouchableOpacity>
           </View>
+
+          <View className="mt-4 rounded-3xl bg-white/10 px-4 py-4">
+            <Text className="text-sm font-semibold text-white">
+              {branchLocked ? '本支部党员录入' : '党员建档与账号同步'}
+            </Text>
+            <Text className="mt-2 text-xs leading-5 text-red-100">
+              {branchLocked
+                ? `当前账号只能为“${user?.branch_name || '当前支部'}”录入党员，保存后会同步生成普通党员登录账号。`
+                : '请完整填写党员基础信息、党籍信息和所属支部，保存后系统会自动创建对应登录账号。'}
+            </Text>
+          </View>
         </View>
 
-        <ScrollView className="flex-1 px-4 py-4">
-          <SectionCard title="基础信息">
+        <ScrollView className="flex-1 px-4 py-4" contentContainerStyle={{ paddingBottom: 40 }}>
+          <SectionCard title="基础信息" subtitle="录入党员基本档案，用于通讯、组织关系和后续管理。">
             <FormItem label="姓名 *" value={member.name} onChangeText={(name) => setMember({ ...member, name })} />
-            <FormItem label="性别" value={member.gender} onChangeText={(gender) => setMember({ ...member, gender })} />
-            <FormItem
+            <SelectionRow
+              label="性别"
+              value={member.gender}
+              options={['男', '女']}
+              onSelect={(gender) => setMember({ ...member, gender })}
+            />
+            <DateLikeInput
               label="出生日期"
               value={member.birthday}
-              onChangeText={(birthday) => setMember({ ...member, birthday })}
               placeholder="YYYY-MM-DD"
+              helperText="网页端可直接手动输入，格式例如 1990-05-01。"
+              onChangeText={(birthday) => setMember({ ...member, birthday })}
+              onOpenPicker={Platform.OS === 'web' ? undefined : () => setShowBirthdayPicker(true)}
             />
             <FormItem
               label="部门"
@@ -207,31 +274,60 @@ export default function MemberEdit() {
             />
           </SectionCard>
 
-          <SectionCard title="党籍信息">
+          <SectionCard title="党籍信息" subtitle="这些字段会直接进入党员台账，用于统计、提醒和报表。">
             <FormItem
               label="政治面貌"
               value={member.political_status}
               onChangeText={(political_status) => setMember({ ...member, political_status })}
             />
-            <DateField label="入党日期 *" value={member.join_date} onPress={() => setShowJoinDatePicker(true)} />
-            <DateField label="转正日期" value={member.regular_date} onPress={() => setShowRegularDatePicker(true)} />
-            <DateField label="党费缴纳年月" value={member.last_fee_month} onPress={() => setShowFeeMonthPicker(true)} />
+            <DateLikeInput
+              label="入党日期 *"
+              value={member.join_date}
+              placeholder="YYYY-MM-DD"
+              helperText="该字段为必填项，用于党员正式建档。"
+              onChangeText={(join_date) => setMember({ ...member, join_date })}
+              onOpenPicker={Platform.OS === 'web' ? undefined : () => setShowJoinDatePicker(true)}
+            />
+            <DateLikeInput
+              label="转正日期"
+              value={member.regular_date}
+              placeholder="YYYY-MM-DD"
+              helperText="预备党员可填写预计转正日期，正式党员可留空。"
+              onChangeText={(regular_date) => setMember({ ...member, regular_date })}
+              onOpenPicker={Platform.OS === 'web' ? undefined : () => setShowRegularDatePicker(true)}
+            />
+            <DateLikeInput
+              label="党费缴纳年月"
+              value={member.last_fee_month}
+              placeholder="YYYY-MM"
+              helperText="用于首页党费提醒统计，例如 2026-04。"
+              onChangeText={(last_fee_month) => setMember({ ...member, last_fee_month })}
+              onOpenPicker={Platform.OS === 'web' ? undefined : () => setShowFeeMonthPicker(true)}
+            />
+          </SectionCard>
 
-            <View className="mb-4">
-              <Text className="mb-2 text-sm text-slate-500">所属党支部 *</Text>
-              <View className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-                <Text className="text-slate-900">
-                  {selectedBranchName || (branchLocked ? user?.branch_name || '未绑定支部' : '请选择所属党支部')}
-                </Text>
-              </View>
+          <SectionCard title="所属党支部" subtitle="创建党员时必须绑定党支部，后续账号会自动继承该支部。">
+            <View className="rounded-3xl border border-red-100 bg-red-50 px-4 py-4">
+              <Text className="text-sm text-slate-500">当前选择</Text>
+              <Text className="mt-2 text-base font-semibold text-slate-900">
+                {selectedBranchName || (branchLocked ? user?.branch_name || '未绑定支部' : '请选择所属党支部')}
+              </Text>
               <Text className="mt-2 text-xs leading-5 text-slate-500">
                 {branchLocked
-                  ? '当前角色为党支部书记/委员，新增党员时只能选择本支部。'
-                  : '党建纪检部可选择任意已存在支部。'}
+                  ? '当前角色为党支部书记/委员，只允许给本支部新增党员。'
+                  : '党建纪检部可在任意已存在支部下新建党员。'}
               </Text>
-              <View className="mt-3 flex-row flex-wrap">
-                {branches.map((branch) => {
-                  const disabled = branchLocked && branch.id !== user?.branch_id;
+            </View>
+
+            <View className="mt-4">
+              {branches.length === 0 ? (
+                <View className="rounded-3xl border border-dashed border-red-200 bg-white px-4 py-4">
+                  <Text className="text-sm text-slate-500">暂无可选支部，请先创建党支部。</Text>
+                </View>
+              ) : (
+                branches.map((branch) => {
+                  const disabled = branchLocked && Number(branch.id) !== Number(user?.branch_id);
+                  const active = Number(member.branch_id) === Number(branch.id);
                   return (
                     <TouchableOpacity
                       key={branch.id}
@@ -239,73 +335,73 @@ export default function MemberEdit() {
                       onPress={() =>
                         setMember({
                           ...member,
-                          branch_id: branch.id,
+                          branch_id: Number(branch.id),
                           branch_name: branch.name,
                         })
                       }
-                      className={`mr-2 mt-2 rounded-full border px-3 py-2 ${
-                        member.branch_id === branch.id
-                          ? 'border-red-300 bg-red-50'
-                          : 'border-red-100 bg-white'
+                      className={`mb-3 rounded-3xl border px-4 py-4 ${
+                        active ? 'border-red-300 bg-red-50' : 'border-red-100 bg-white'
                       } ${disabled ? 'opacity-50' : ''}`}
                     >
-                      <Text
-                        className={`text-xs ${
-                          member.branch_id === branch.id ? 'text-red-700' : 'text-slate-500'
-                        }`}
-                      >
-                        {branch.name}
-                      </Text>
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-1 pr-4">
+                          <Text className={`text-base font-semibold ${active ? 'text-red-700' : 'text-slate-900'}`}>
+                            {branch.name}
+                          </Text>
+                          <Text className="mt-2 text-xs leading-5 text-slate-500">
+                            书记：{branch.secretary_name || '未设置'} · 党员 {branch.member_count || 0} 名
+                          </Text>
+                        </View>
+                        {active ? <FontAwesome6 name="circle-check" size={18} color="#B91C1C" /> : null}
+                      </View>
                     </TouchableOpacity>
                   );
-                })}
-              </View>
+                })
+              )}
             </View>
           </SectionCard>
 
-          <SectionCard title="党员状态">
-            <View className="flex-row flex-wrap">
-              {[
+          <SectionCard title="党员状态与备注" subtitle="状态用于统计看板，备注用于保存个性化说明。">
+            <SelectionRow
+              label="党员状态"
+              value={member.status}
+              options={[
                 { value: 'active', label: '正式党员' },
                 { value: 'probationary', label: '预备党员' },
                 { value: 'transferred_out', label: '已转出' },
                 { value: 'suspended', label: '暂停党籍' },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.value}
-                  onPress={() => setMember({ ...member, status: item.value })}
-                  className={`mr-2 mt-2 rounded-full border px-4 py-2 ${
-                    member.status === item.value
-                      ? 'border-red-300 bg-red-50'
-                      : 'border-red-100 bg-white'
-                  }`}
-                >
-                  <Text
-                    className={`text-sm ${
-                      member.status === item.value ? 'text-red-700' : 'text-slate-500'
-                    }`}
-                  >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </SectionCard>
-
-          <SectionCard title="备注">
-            <TextInput
-              className="h-24 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
-              value={member.remarks}
-              onChangeText={(remarks) => setMember({ ...member, remarks })}
-              placeholder="可填写培养情况、转正计划等说明"
-              placeholderTextColor="#94A3B8"
-              multiline
-              textAlignVertical="top"
+              ]}
+              onSelect={(status) => setMember({ ...member, status })}
             />
+            <View className="mt-4">
+              <Text className="mb-2 text-sm text-slate-500">备注</Text>
+              <TextInput
+                className="h-28 rounded-3xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
+                value={member.remarks}
+                onChangeText={(remarks) => setMember({ ...member, remarks })}
+                placeholder="例如：培养考察情况、转正计划、组织关系变更说明等"
+                placeholderTextColor="#94A3B8"
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
           </SectionCard>
         </ScrollView>
 
-        {showJoinDatePicker ? (
+        {Platform.OS !== 'web' && showBirthdayPicker ? (
+          <DateTimePicker
+            value={toDate(member.birthday)}
+            mode="date"
+            display="default"
+            onChange={(_, value) => {
+              setShowBirthdayPicker(false);
+              if (value) {
+                setMember({ ...member, birthday: formatDate(value) });
+              }
+            }}
+          />
+        ) : null}
+        {Platform.OS !== 'web' && showJoinDatePicker ? (
           <DateTimePicker
             value={toDate(member.join_date)}
             mode="date"
@@ -318,7 +414,7 @@ export default function MemberEdit() {
             }}
           />
         ) : null}
-        {showRegularDatePicker ? (
+        {Platform.OS !== 'web' && showRegularDatePicker ? (
           <DateTimePicker
             value={toDate(member.regular_date)}
             mode="date"
@@ -331,7 +427,7 @@ export default function MemberEdit() {
             }}
           />
         ) : null}
-        {showFeeMonthPicker ? (
+        {Platform.OS !== 'web' && showFeeMonthPicker ? (
           <DateTimePicker
             value={toDate(member.last_fee_month ? `${member.last_fee_month}-01` : '')}
             mode="date"
@@ -352,11 +448,20 @@ export default function MemberEdit() {
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <View className="mb-4 rounded-3xl border border-red-100 bg-white p-4">
-      <Text className="mb-4 text-base font-semibold text-red-700">{title}</Text>
-      {children}
+    <View className="mb-4 rounded-[28px] border border-red-100 bg-white p-4">
+      <Text className="text-base font-semibold text-red-700">{title}</Text>
+      {subtitle ? <Text className="mt-2 text-xs leading-5 text-slate-500">{subtitle}</Text> : null}
+      <View className="mt-4">{children}</View>
     </View>
   );
 }
@@ -378,7 +483,7 @@ function FormItem({
     <View className="mb-4">
       <Text className="mb-2 text-sm text-slate-500">{label}</Text>
       <TextInput
-        className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
+        className="rounded-3xl border border-red-100 bg-red-50 px-4 py-3 text-slate-900"
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder || `请输入${label.replace('*', '').trim()}`}
@@ -389,23 +494,85 @@ function FormItem({
   );
 }
 
-function DateField({
+function DateLikeInput({
   label,
   value,
-  onPress,
+  placeholder,
+  helperText,
+  onChangeText,
+  onOpenPicker,
 }: {
   label: string;
   value: string;
-  onPress: () => void;
+  placeholder: string;
+  helperText?: string;
+  onChangeText: (text: string) => void;
+  onOpenPicker?: () => void;
 }) {
   return (
-    <TouchableOpacity onPress={onPress} className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-      <Text className="mb-1 text-sm text-slate-500">{label}</Text>
-      <View className="flex-row items-center justify-between">
-        <Text className={value ? 'text-slate-900' : 'text-slate-400'}>{value || '请选择日期'}</Text>
-        <FontAwesome6 name="calendar" size={14} color="#DC2626" />
+    <View className="mb-4">
+      <Text className="mb-2 text-sm text-slate-500">{label}</Text>
+      <View className="flex-row items-center rounded-3xl border border-red-100 bg-red-50 px-4 py-2">
+        <TextInput
+          className="flex-1 py-1 text-slate-900"
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+        />
+        {onOpenPicker ? (
+          <TouchableOpacity onPress={onOpenPicker} className="ml-3 rounded-full bg-white px-3 py-2">
+            <FontAwesome6 name="calendar" size={14} color="#B91C1C" />
+          </TouchableOpacity>
+        ) : null}
       </View>
-    </TouchableOpacity>
+      {helperText ? <Text className="mt-2 text-xs leading-5 text-slate-500">{helperText}</Text> : null}
+    </View>
+  );
+}
+
+function SelectionRow({
+  label,
+  value,
+  options,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  options: Array<string | { value: string; label: string }>;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <View>
+      <Text className="mb-2 text-sm text-slate-500">{label}</Text>
+      <View className="flex-row flex-wrap">
+        {options.map((option) => {
+          const normalized = typeof option === 'string'
+            ? { value: option, label: option }
+            : option;
+
+          return (
+            <TouchableOpacity
+              key={normalized.value}
+              onPress={() => onSelect(normalized.value)}
+              className={`mr-2 mt-2 rounded-full border px-4 py-2 ${
+                value === normalized.value
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-red-100 bg-white'
+              }`}
+            >
+              <Text
+                className={`text-sm ${
+                  value === normalized.value ? 'text-red-700' : 'text-slate-500'
+                }`}
+              >
+                {normalized.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -417,7 +584,7 @@ function formatDate(date: Date) {
 }
 
 function toDate(value: string) {
-  if (!value) {
+  if (!value || !DATE_PATTERN.test(value)) {
     return new Date();
   }
 

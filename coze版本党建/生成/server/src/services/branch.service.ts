@@ -103,10 +103,6 @@ export async function createBranch(payload: BranchMutationPayload, currentUser: 
       throw new AppError(409, '支部名称或支部代码已存在');
     }
 
-    const nextIdResult = await pool.query<{ id: string }>(
-      'SELECT COALESCE(MAX(id), 0)::text AS id FROM branches'
-    );
-    const nextId = Number(nextIdResult.rows[0]?.id ?? '0') + 1;
     const created = await pool.query<{
       id: number;
       name: string;
@@ -123,14 +119,13 @@ export async function createBranch(payload: BranchMutationPayload, currentUser: 
     }>(
       `
         INSERT INTO branches (
-          id, name, code, description, contact_phone, establish_date, renewal_reminder_date,
+          name, code, description, contact_phone, establish_date, renewal_reminder_date,
           secretary_id, secretary_name, status, remark, committee_members
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
         RETURNING *
       `,
       [
-        nextId,
         nextName,
         nextCode,
         payload.description?.trim() || '',
