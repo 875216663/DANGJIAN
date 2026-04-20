@@ -1,3 +1,5 @@
+// 这个文件是 Expo Router 的根布局入口，负责定义整个前端应用的导航骨架、全局样式和公共 Provider。
+// 它的作用是统一页面栈、加载全局 CSS，并保证 Toast、状态管理等基础能力在整站可用。
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';

@@ -18,6 +18,7 @@ import { logger } from './utils/logger';
 
 const app = express();
 
+// 统一配置跨域、请求体解析以及请求日志/审计中间件。
 app.use(
   cors({
     origin(origin, callback) {
@@ -31,6 +32,7 @@ app.use(express.urlencoded({ limit: '20mb', extended: true }));
 app.use(requestLogger);
 app.use(auditMiddleware);
 
+// 按业务域拆分路由，所有接口统一挂载到 /api/v1 下。
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
@@ -40,6 +42,7 @@ app.use('/api/v1/notices', noticesRouter);
 app.use('/api/v1/meetings', meetingsRouter);
 app.use('/api/v1/study', studyRouter);
 
+// 兜底 404 和统一错误处理，避免异常直接暴露给客户端。
 app.use(notFoundHandler);
 app.use(errorHandler);
 

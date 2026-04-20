@@ -31,6 +31,7 @@ function getStorageMode() {
   return isDatabaseEnabled() ? 'database' : 'local-file';
 }
 
+// 将数据库记录转换为统一的前端用户视图结构。
 function mapUserRow(row: UserRow, store?: Awaited<ReturnType<typeof readStore>>) {
   return toUserView(
     {
@@ -49,6 +50,7 @@ function mapUserRow(row: UserRow, store?: Awaited<ReturnType<typeof readStore>>)
   );
 }
 
+// 从数据库读取全部可登录用户。
 async function listUsersFromDatabase() {
   await readStore();
   const pool = getDatabasePool();
@@ -80,6 +82,7 @@ async function listUsersFromDatabase() {
   return result.rows.map((row) => mapUserRow(row));
 }
 
+// 从数据库读取演示账号，并补充默认密码与描述信息。
 async function listDemoAccountsFromDatabase() {
   await readStore();
   const pool = getDatabasePool();
@@ -122,6 +125,7 @@ async function listDemoAccountsFromDatabase() {
   });
 }
 
+// 本地文件模式下，根据预置种子拼出可登录账号。
 function buildFallbackAccounts(store: Awaited<ReturnType<typeof readStore>>) {
   return DEMO_ACCOUNT_SEEDS.map((seed, index) => {
     const branch = seed.useFirstBranch ? store.branches[0] : undefined;
@@ -152,6 +156,7 @@ function buildFallbackAccounts(store: Awaited<ReturnType<typeof readStore>>) {
   });
 }
 
+// 按用户 ID 读取单个用户，用于会话恢复。
 async function getUserById(userId: number) {
   await readStore();
   const pool = getDatabasePool();
@@ -186,6 +191,7 @@ async function getUserById(userId: number) {
   return result.rows[0] ? mapUserRow(result.rows[0]) : null;
 }
 
+// 返回可用于前端选择的用户列表，同时附带默认用户 ID 和存储模式。
 export async function listUsers() {
   if (!isDatabaseEnabled()) {
     const store = await readStore();
@@ -205,6 +211,7 @@ export async function listUsers() {
   };
 }
 
+// 返回演示账号列表，便于前端快速展示可登录账号。
 export async function listDemoAccounts() {
   if (!isDatabaseEnabled()) {
     return {
@@ -219,6 +226,7 @@ export async function listDemoAccounts() {
   };
 }
 
+// 登录逻辑根据不同存储模式分别处理，最终都会返回 token 和用户信息。
 export async function login(username: string, password: string) {
   if (!isDatabaseEnabled()) {
     const store = await readStore();
@@ -299,6 +307,7 @@ export async function login(username: string, password: string) {
   };
 }
 
+// 根据 token 中的用户上下文恢复会话信息。
 export async function getSession(currentUser: CurrentUserContext) {
   if (!isDatabaseEnabled()) {
     const store = await readStore();
