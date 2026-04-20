@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { requestJson } from '@/utils/api';
@@ -120,12 +121,23 @@ export default function BranchEdit() {
         }),
       });
 
+      Toast.show({
+        type: 'success',
+        text1: '保存成功',
+        text2: isEdit ? '党支部信息已更新' : '党支部已创建并写入数据库',
+      });
       Alert.alert('保存成功', isEdit ? '党支部信息已更新' : '党支部已创建并写入数据库', [
         { text: '确定', onPress: () => router.replace('/branches') },
       ]);
     } catch (error) {
       console.error('Save branch error:', error);
-      Alert.alert('保存失败', error instanceof Error ? error.message : '请稍后重试');
+      const errorMessage = error instanceof Error ? error.message : '请稍后重试';
+      Toast.show({
+        type: 'error',
+        text1: '保存失败',
+        text2: errorMessage,
+      });
+      Alert.alert('保存失败', errorMessage);
     } finally {
       setLoading(false);
     }

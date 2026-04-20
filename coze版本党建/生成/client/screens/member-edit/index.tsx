@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FontAwesome6 } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 import { Screen } from '@/components/Screen';
 import { useSafeRouter, useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { requestJson } from '@/utils/api';
@@ -169,7 +170,8 @@ export default function MemberEdit() {
       political_status: member.political_status.trim(),
       join_date: member.join_date.trim(),
       regular_date: member.regular_date.trim(),
-      branch_name: selectedBranchName || member.branch_name,
+      // 以 branch_id 作为唯一归属来源，避免 branch_name 文本差异导致后端鉴权误判
+      branch_name: '',
       last_fee_month: member.last_fee_month.trim(),
       remarks: member.remarks.trim(),
     };
@@ -183,6 +185,11 @@ export default function MemberEdit() {
       });
 
       if (!isEdit && data?.account) {
+        Toast.show({
+          type: 'success',
+          text1: '创建成功',
+          text2: '党员信息与登录账号已同步生成',
+        });
         Alert.alert(
           '创建成功',
           `党员信息已落库，并已同步生成系统账号。\n\n账号：${data.account.username}\n初始密码：${data.account.default_password}\n所属角色：${data.account.role_label}\n所属支部：${selectedBranchName || '未分配'}`,
@@ -196,12 +203,23 @@ export default function MemberEdit() {
         return;
       }
 
+      Toast.show({
+        type: 'success',
+        text1: '保存成功',
+        text2: isEdit ? '党员信息已更新' : '党员已创建',
+      });
       Alert.alert('保存成功', isEdit ? '党员信息已更新' : '党员已创建', [
         { text: '确定', onPress: () => router.replace('/members') },
       ]);
     } catch (error) {
       console.error('Save member error:', error);
-      Alert.alert('保存失败', error instanceof Error ? error.message : '请稍后重试');
+      const errorMessage = error instanceof Error ? error.message : '请稍后重试';
+      Toast.show({
+        type: 'error',
+        text1: '保存失败',
+        text2: errorMessage,
+      });
+      Alert.alert('保存失败', errorMessage);
     } finally {
       setLoading(false);
     }
